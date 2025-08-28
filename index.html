@@ -1079,8 +1079,8 @@
         return;
       }
 
-      const delayMinutes = parseInt(document.getElementById("delaySelect").value);
-      const delayMs = delayMinutes * 60 * 1000;
+      const delaySeconds = parseInt(document.getElementById("delaySelect").value);
+      const delayMs = delaySeconds * 1000;
 
       coinFarmBotRunning = true;
       document.getElementById("botStatus").className = "status-indicator status-active";
@@ -1191,7 +1191,7 @@
           output += `❌ finishMatch: Exception - ${err.message}\n`;
         }
 
-        output += `Waiting ${delayMinutes} minutes for next cycle...\n`;
+        output += `Waiting ${delaySeconds} seconds for next cycle...\n`;
         const cloudOutput = document.getElementById("cloudOutput");
         cloudOutput.textContent += output;
         cloudOutput.scrollTop = cloudOutput.scrollHeight;
