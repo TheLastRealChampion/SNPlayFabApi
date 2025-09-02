@@ -1439,12 +1439,6 @@
         cloudOutput.textContent += `Total Kid Coins Earned: ${Math.floor(kidCoins)}\n`;
         cloudOutput.scrollTop = cloudOutput.scrollHeight;
 
-        // Generate and download log file
-        const logContent = `Coin Farm Bot Log - Stopped at ${new Date().toLocaleTimeString()}\n\n` +
-                           `Total Neighbor Coins Earned: ${Math.floor(neighborCoins)}\n` +
-                           `Total Kid Coins Earned: ${Math.floor(kidCoins)}\n`;
-        downloadLogFile(logContent, `coin_farm_log_${new Date().toISOString().replace(/[:.]/g, '-')}.txt`);
-
         totalCoinsEarned = 0; // Reset coin counter
         lastCoinFarmResponse = null; // Clear last response
         return;
